@@ -233,7 +233,7 @@ function Shell({
         </footer>
       </aside>
 
-      <main className="reference-main">
+      <main className={`reference-main${active === "dashboard" ? " dashboard-main" : ""}`}>
         <div className="profile-toolbar" ref={menuRef}>
           <button type="button" className="profile-trigger" aria-label="Open profile" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
             <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
