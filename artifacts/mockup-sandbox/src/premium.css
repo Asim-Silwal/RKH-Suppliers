@@ -51,7 +51,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .summary-grid span { color: #71717a; font-size: 12px; font-weight: 550; }
 .summary-grid strong { color: #1d1d1f; font-size: clamp(21px, 1.8vw, 29px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
 .summary-grid small { color: #92929a; }
-.activity-card { --chart-purchase: #315f9f; --chart-payment: #8ab3df; min-height: 220px; padding: 30px 36px; }
+.activity-card { --chart-purchase: #315f9f; --chart-payment: #8ab3df; min-height: 260px; padding: 34px 40px; }
+.activity-chart { width: 200px; height: 200px; flex-basis: 200px; }
+.activity-chart > div { width: 148px; height: 148px; }
 .activity-copy h2, .panel-heading h2, .form-panel h2 { color: #242428; font-weight: 650; letter-spacing: -.035em; }
 .activity-copy p, .activity-legend span { color: #77777e; }
 .activity-legend em { color: #545c68; font-size: 11px; font-style: normal; font-weight: 600; }
@@ -170,14 +172,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .dashboard-main .summary-grid { gap: 12px; margin-bottom: 14px; }
   .dashboard-main .summary-grid > div { min-height: 116px; padding: 15px 18px; }
   .dashboard-main .summary-grid strong { font-size: clamp(20px, 1.6vw, 26px); }
-  .dashboard-main .activity-card { min-height: 132px; margin-bottom: 14px; padding: 17px 26px; }
+  .dashboard-main .activity-card { min-height: 190px; margin-bottom: 14px; padding: 22px 30px; }
   .dashboard-main .activity-copy h2 { margin: 5px 0; font-size: 21px; }
   .dashboard-main .activity-legend { margin-top: 13px; }
-  .dashboard-main .activity-chart { width: 106px; height: 106px; flex-basis: 106px; }
-  .dashboard-main .activity-chart > div { width: 78px; height: 78px; }
-  .dashboard-main .activity-chart strong { font-size: 27px; }
+  .dashboard-main .activity-chart { width: 152px; height: 152px; flex-basis: 152px; }
+  .dashboard-main .activity-chart > div { width: 112px; height: 112px; }
+  .dashboard-main .activity-chart strong { font-size: 31px; }
   .dashboard-main .dashboard-columns { gap: 14px; }
-  .dashboard-main .dashboard-columns .reference-panel { max-height: clamp(180px, calc(100dvh - 585px), 360px); overflow-y: auto; }
+  .dashboard-main .dashboard-columns .reference-panel { max-height: clamp(150px, calc(100dvh - 645px), 320px); overflow-y: auto; }
   .dashboard-main .panel-heading { padding: 16px 21px 13px; }
   .dashboard-main .panel-heading h2 { margin-top: 4px; font-size: 19px; }
   .dashboard-main .ledger-row { padding: 11px 20px; }
@@ -270,7 +272,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .summary-grid > div, .summary-grid > div:first-child, .summary-grid > div:nth-child(2), .summary-grid > div:nth-child(3), .summary-grid > div:nth-child(4) { min-height: 120px; padding: 14px; border-radius: 13px; }
   .summary-grid span { font-size: 11px; }
   .summary-grid strong { font-size: clamp(17px, 4.4vw, 22px); line-height: 1.1; }
-  .activity-card { min-height: 0; gap: 12px; margin-bottom: 14px; padding: 19px; }
+  .activity-card { min-height: 0; gap: 16px; margin-bottom: 14px; padding: 22px; }
+  .activity-chart { width: 172px; height: 172px; flex-basis: 172px; }
+  .activity-chart > div { width: 126px; height: 126px; }
   .activity-copy h2 { font-size: 19px; }
   .activity-copy p { font-size: 12px; }
   .activity-legend { gap: 6px 15px; margin-top: 15px; }
@@ -314,7 +318,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 @media (max-width: 380px) {
   .activity-card { flex-direction: column; align-items: stretch; }
-  .activity-chart { align-self: center; }
+  .activity-chart { align-self: center; width: 160px; height: 160px; flex-basis: 160px; }
+  .activity-chart > div { width: 118px; height: 118px; }
   .summary-grid strong { font-size: 16px; }
 }
 
