@@ -1243,6 +1243,11 @@ function Transactions({
   const [query, setQuery] =
     useState("");
 
+  const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+
   const [type, setType] =
     useState("all");
 
@@ -1251,6 +1256,17 @@ function Transactions({
 
   const [to, setTo] =
     useState("");
+
+  const suggestedParties = query.trim() && !selectedPartyId
+    ? parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+    : [];
+  const showSuggestions = suggestionsOpen && Boolean(query.trim()) && !selectedPartyId;
+  const chooseParty = (party: Party) => {
+    setQuery(party.name);
+    setSelectedPartyId(party.id);
+    setSuggestionsOpen(false);
+    setActiveSuggestion(0);
+  };
 
   const shown = entries.filter(
     (entry) => {
@@ -1265,7 +1281,7 @@ function Transactions({
         } ${entry.description}`.toLowerCase();
 
       return (
-        (!query ||
+        (selectedPartyId ? entry.partyId === selectedPartyId : !query ||
           text.includes(
             query.toLowerCase(),
           )) &&
@@ -1311,16 +1327,46 @@ function Transactions({
       </div>
 
       <div className="filter-bar transaction-filters">
-        <Search size={16} />
-
-        <input
-          aria-label="Search transactions"
-          placeholder="Search party or description"
-          value={query}
-          onChange={(event) =>
-            setQuery(event.target.value)
-          }
-        />
+        <div className="statement-search" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSuggestionsOpen(false); }}>
+          <Search size={17} aria-hidden="true" />
+          <input
+            ref={searchRef}
+            role="combobox"
+            aria-label="Search parties or descriptions"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions}
+            aria-controls="party-suggestions"
+            aria-activedescendant={showSuggestions && suggestedParties.length ? `party-suggestion-${activeSuggestion}` : undefined}
+            placeholder="Search party or description"
+            value={query}
+            onFocus={() => setSuggestionsOpen(true)}
+            onChange={(event) => { setQuery(event.target.value); setSelectedPartyId(null); setActiveSuggestion(0); setSuggestionsOpen(true); }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setSuggestionsOpen(false);
+              if (!showSuggestions || suggestedParties.length === 0) return;
+              if (event.key === "ArrowDown") { event.preventDefault(); setActiveSuggestion((index) => (index + 1) % suggestedParties.length); }
+              if (event.key === "ArrowUp") { event.preventDefault(); setActiveSuggestion((index) => (index - 1 + suggestedParties.length) % suggestedParties.length); }
+              if (event.key === "Enter") { event.preventDefault(); const match = suggestedParties[activeSuggestion]; if (match) chooseParty(match); }
+            }}
+          />
+          {query && <button type="button" className="statement-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSelectedPartyId(null); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
+          {showSuggestions && <div id="party-suggestions" className="party-suggestions" role="listbox" aria-label="Matching parties">
+            {suggestedParties.length ? suggestedParties.map((party, index) => <button
+              type="button"
+              id={`party-suggestion-${index}`}
+              role="option"
+              aria-selected={index === activeSuggestion}
+              className={index === activeSuggestion ? "active" : ""}
+              key={party.id}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => chooseParty(party)}
+            >
+              <UsersRound size={16} aria-hidden="true" />
+              <span><strong>{party.name}</strong><small>{[party.company, party.contact].filter(Boolean).join(" · ") || "Party account"}</small></span>
+              <ArrowRight size={14} aria-hidden="true" />
+            </button>) : <p>No matching parties. You can still search descriptions.</p>}
+          </div>}
+        </div>
 
         <select
           aria-label="Filter transaction type"
