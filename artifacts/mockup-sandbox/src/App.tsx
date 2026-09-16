@@ -104,6 +104,9 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
+const matchingParties = (parties: Party[], query: string) =>
+  parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
+
 const balanceOf = (entries: Entry[], partyId: string) =>
   entries
     .filter((entry) => entry.partyId === partyId)
@@ -705,14 +708,13 @@ function Parties({
   entries: Entry[];
 }) {
   const [query, setQuery] = useState("");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const matches = query.trim() ? matchingParties(parties, query).slice(0, 6) : [];
+  const showSuggestions = suggestionsOpen && Boolean(query.trim());
 
-  const shown = parties.filter((party) =>
-    `${party.name} ${party.company ?? ""} ${
-      party.contact ?? ""
-    }`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
+  const shown = matchingParties(parties, query);
 
   return (
     <>
@@ -724,17 +726,32 @@ function Parties({
         label="Add party"
       />
 
-      <div className="filter-bar">
-        <Search size={16} />
-
-        <input
-          aria-label="Search parties"
-          placeholder="Search by name, company, or phone"
-          value={query}
-          onChange={(event) =>
-            setQuery(event.target.value)
-          }
-        />
+      <div className="filter-bar directory-search-bar">
+        <div className="party-search-field" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSuggestionsOpen(false); }}>
+          <Search size={17} aria-hidden="true" />
+          <input
+            ref={searchRef}
+            role="combobox"
+            aria-label="Search parties"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions}
+            aria-controls="directory-party-suggestions"
+            aria-activedescendant={showSuggestions && matches.length ? `directory-party-suggestions-${activeSuggestion}` : undefined}
+            placeholder="Search by name, company, or phone"
+            value={query}
+            onFocus={() => setSuggestionsOpen(true)}
+            onChange={(event) => { setQuery(event.target.value); setActiveSuggestion(0); setSuggestionsOpen(true); }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setSuggestionsOpen(false);
+              if (!showSuggestions || matches.length === 0) return;
+              if (event.key === "ArrowDown") { event.preventDefault(); setActiveSuggestion((index) => (index + 1) % matches.length); }
+              if (event.key === "ArrowUp") { event.preventDefault(); setActiveSuggestion((index) => (index - 1 + matches.length) % matches.length); }
+              if (event.key === "Enter") { event.preventDefault(); const match = matches[activeSuggestion]; if (match) go(`parties/${match.id}`); }
+            }}
+          />
+          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
+          {showSuggestions && <PartySuggestions id="directory-party-suggestions" parties={matches} active={activeSuggestion} onSelect={(party) => go(`parties/${party.id}`)} emptyMessage="No matching parties." />}
+        </div>
       </div>
 
       <section className="reference-panel table-panel">
@@ -1267,7 +1284,7 @@ function Transactions({
     useState("");
 
   const suggestedParties = query.trim() && !selectedPartyId
-    ? parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+    ? matchingParties(parties, query).slice(0, 6)
     : [];
   const showSuggestions = suggestionsOpen && Boolean(query.trim()) && !selectedPartyId;
   const chooseParty = (party: Party) => {
@@ -1336,7 +1353,7 @@ function Transactions({
       </div>
 
       <div className="filter-bar transaction-filters">
-        <div className="statement-search" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSuggestionsOpen(false); }}>
+        <div className="party-search-field" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSuggestionsOpen(false); }}>
           <Search size={17} aria-hidden="true" />
           <input
             ref={searchRef}
@@ -1345,7 +1362,7 @@ function Transactions({
             aria-autocomplete="list"
             aria-expanded={showSuggestions}
             aria-controls="party-suggestions"
-            aria-activedescendant={showSuggestions && suggestedParties.length ? `party-suggestion-${activeSuggestion}` : undefined}
+            aria-activedescendant={showSuggestions && suggestedParties.length ? `party-suggestions-${activeSuggestion}` : undefined}
             placeholder="Search party or description"
             value={query}
             onFocus={() => setSuggestionsOpen(true)}
@@ -1358,23 +1375,8 @@ function Transactions({
               if (event.key === "Enter") { event.preventDefault(); const match = suggestedParties[activeSuggestion]; if (match) chooseParty(match); }
             }}
           />
-          {query && <button type="button" className="statement-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSelectedPartyId(null); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
-          {showSuggestions && <div id="party-suggestions" className="party-suggestions" role="listbox" aria-label="Matching parties">
-            {suggestedParties.length ? suggestedParties.map((party, index) => <button
-              type="button"
-              id={`party-suggestion-${index}`}
-              role="option"
-              aria-selected={index === activeSuggestion}
-              className={index === activeSuggestion ? "active" : ""}
-              key={party.id}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => chooseParty(party)}
-            >
-              <UsersRound size={16} aria-hidden="true" />
-              <span><strong>{party.name}</strong><small>{[party.company, party.contact].filter(Boolean).join(" · ") || "Party account"}</small></span>
-              <ArrowRight size={14} aria-hidden="true" />
-            </button>) : <p>No matching parties. You can still search descriptions.</p>}
-          </div>}
+          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSelectedPartyId(null); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
+          {showSuggestions && <PartySuggestions id="party-suggestions" parties={suggestedParties} active={activeSuggestion} onSelect={chooseParty} emptyMessage="No matching parties. You can still search descriptions." />}
         </div>
 
         <select
@@ -2618,6 +2620,31 @@ export default function App() {
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
     </>
   );
+}
+
+function PartySuggestions({ id, parties, active, onSelect, emptyMessage }: {
+  id: string;
+  parties: Party[];
+  active: number;
+  onSelect: (party: Party) => void;
+  emptyMessage: string;
+}) {
+  return <div id={id} className="party-suggestions" role="listbox" aria-label="Matching parties">
+    {parties.length ? parties.map((party, index) => <button
+      type="button"
+      id={`${id}-${index}`}
+      role="option"
+      aria-selected={index === active}
+      className={index === active ? "active" : ""}
+      key={party.id}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onSelect(party)}
+    >
+      <UsersRound size={16} aria-hidden="true" />
+      <span><strong>{party.name}</strong><small>{[party.company, party.contact].filter(Boolean).join(" · ") || "Party account"}</small></span>
+      <ArrowRight size={14} aria-hidden="true" />
+    </button>) : <p>{emptyMessage}</p>}
+  </div>;
 }
 
 function ActionNotice({ notice, dismiss }: { notice: Notice | null; dismiss: () => void }) {
