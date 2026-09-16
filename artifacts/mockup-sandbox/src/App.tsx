@@ -1786,10 +1786,15 @@ function PartyDetail({
         {selectedTransactions.length > 0 && (
           <div className="selected-transaction-bar">
             <span>{selectedTransactions.length} transaction{selectedTransactions.length === 1 ? "" : "s"} selected</span>
-            <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransactions}>
-              <Trash2 size={14} aria-hidden="true" />
-              {deletingTransaction ? "Deleting..." : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}`}
-            </button>
+            <div className="selected-transaction-actions">
+              <button type="button" className="outline-button" disabled={deletingTransaction} onClick={() => setSelectedTransactionIds(selectedTransactions.length === rows.length ? new Set() : new Set(rows.map((entry) => entry.id)))}>
+                {selectedTransactions.length === rows.length ? "Clear selection" : "Select all"}
+              </button>
+              <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransactions}>
+                <Trash2 size={14} aria-hidden="true" />
+                {deletingTransaction ? "Deleting..." : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}`}
+              </button>
+            </div>
           </div>
         )}
 

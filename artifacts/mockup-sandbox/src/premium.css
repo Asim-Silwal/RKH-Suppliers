@@ -68,6 +68,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .ledger-row.is-selected { background: #f1f5fc; }
 .transaction-select-checkbox { width: 16px; height: 16px; margin: 0; accent-color: #315d9d; cursor: pointer; }
 .selected-transaction-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #e7eaf0; background: #f8faff; padding: 12px 24px; color: #343944; font-size: 12px; }
+.selected-transaction-actions { display: flex; align-items: center; gap: 9px; }
+.selected-transaction-actions .outline-button { margin: 0; }
 .selected-transaction-bar .delete-button { margin: 0; border-color: #e2b6b6; color: #9f3030; }
 .selected-transaction-bar .delete-button:hover { border-color: #bd5555; background: #fff4f4; color: #872323; }
 .ledger-row b, .ledger-row strong, .party-row b { color: #2c2c31; }
@@ -293,6 +295,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .selectable-table .ledger-row > span:nth-child(4) { grid-column: 2; grid-row: 2; justify-self: end; }
   .selectable-table .ledger-row > span:nth-child(5) { grid-column: 1 / -1; grid-row: 3; }
   .selected-transaction-bar { align-items: stretch; flex-direction: column; padding: 13px 17px; }
+  .selected-transaction-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+  .selected-transaction-actions button { justify-content: center; min-width: 0; }
   .selected-transaction-bar .delete-button { justify-content: center; }
   .party-button { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 10px; min-width: 0; padding: 16px 17px; }
   .party-button > span:first-child { grid-column: 1; grid-row: 1; }
