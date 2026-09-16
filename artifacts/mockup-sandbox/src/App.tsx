@@ -1646,6 +1646,7 @@ function PartyDetail({
 }) {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<"party" | "transactions" | null>(null);
   const rows = entries.filter(
     (entry) =>
       entry.partyId === party.id,
@@ -1653,7 +1654,8 @@ function PartyDetail({
   const selectedTransactions = rows.filter((entry) => selectedTransactionIds.has(entry.id));
 
   const removeSelectedTransactions = async () => {
-    if (selectedTransactions.length === 0 || !window.confirm(`Delete ${selectedTransactions.length} selected transaction${selectedTransactions.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    if (selectedTransactions.length === 0) return;
+    setConfirmingDelete(null);
     setDeletingTransaction(true);
     const deletedIds = await deleteTransactions(selectedTransactions.map((entry) => entry.id));
     setDeletingTransaction(false);
@@ -1731,7 +1733,7 @@ function PartyDetail({
         </button>
         <div className="party-actions">
           <button className="outline-button" onClick={edit}>Edit party</button>
-          <button className="delete-button" onClick={remove}>
+          <button className="delete-button" onClick={() => setConfirmingDelete("party")}>
             <Trash2 size={14} />
             Delete party
           </button>
@@ -1811,7 +1813,7 @@ function PartyDetail({
               <button type="button" className="outline-button" disabled={deletingTransaction} onClick={() => setSelectedTransactionIds(selectedTransactions.length === rows.length ? new Set() : new Set(rows.map((entry) => entry.id)))}>
                 {selectedTransactions.length === rows.length ? "Clear selection" : "Select all"}
               </button>
-              <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransactions}>
+              <button type="button" className="delete-button" disabled={deletingTransaction} onClick={() => setConfirmingDelete("transactions")}>
                 <Trash2 size={14} aria-hidden="true" />
                 {deletingTransaction ? "Deleting..." : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}`}
               </button>
@@ -1833,6 +1835,20 @@ function PartyDetail({
           })}
         />
       </section>
+      {confirmingDelete && (
+        <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
+          <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
+            <h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2>
+            <p id="delete-confirm-detail">{confirmingDelete === "party" ? "This will permanently remove the party and all its transactions." : "Only the selected transactions will be removed. Party balances will update."} This cannot be undone.</p>
+            <div className="delete-confirm-actions">
+              <button type="button" className="outline-button" autoFocus onClick={() => setConfirmingDelete(null)}>Cancel</button>
+              <button type="button" className="delete-button" onClick={() => { if (confirmingDelete === "party") { setConfirmingDelete(null); remove(); } else { void removeSelectedTransactions(); } }}>
+                <Trash2 size={14} aria-hidden="true" /> Delete {confirmingDelete === "party" ? "party" : "transactions"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -2371,14 +2387,6 @@ export default function App() {
   const deleteParty = async (
     party: Party,
   ) => {
-    if (
-      !window.confirm(
-        `Delete ${party.name}? This will permanently delete the party and ALL of its transaction history. This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
-
     const { error } =
       await supabase
         .from("parties")

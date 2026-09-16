@@ -75,6 +75,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .selected-transaction-actions .outline-button { margin: 0; }
 .selected-transaction-bar .delete-button { margin: 0; border-color: #e2b6b6; color: #9f3030; }
 .selected-transaction-bar .delete-button:hover { border-color: #bd5555; background: #fff4f4; color: #872323; }
+.delete-confirm-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; background: rgba(26, 35, 48, .32); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.delete-confirm-dialog { width: min(420px, 100%); padding: 26px; border: 1px solid #e4e8ef; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(24, 36, 56, .18); }
+.delete-confirm-dialog h2 { margin: 0 0 10px; color: #242428; font-size: 20px; }
+.delete-confirm-dialog p { margin: 0; color: #68727f; font-size: 13px; line-height: 1.55; }
+.delete-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
+.delete-confirm-actions .delete-button { border-color: #e2b6b6; color: #9f3030; }
+.delete-confirm-actions .delete-button:hover { border-color: #bd5555; background: #fff4f4; color: #872323; }
 .ledger-row b, .ledger-row strong, .party-row b { color: #2c2c31; }
 .ledger-row small, .party-row small { color: #909098; }
 .type.purchase, .type.payment { border-color: #e3e3e8; background: #f6f6f8; color: #4f4f56; }
@@ -303,6 +310,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .selected-transaction-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
   .selected-transaction-actions button { justify-content: center; min-width: 0; }
   .selected-transaction-bar .delete-button { justify-content: center; }
+  .delete-confirm-dialog { padding: 22px; }
+  .delete-confirm-actions > button { flex: 1; justify-content: center; }
   .party-button { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 6px 10px; min-width: 0; padding: 16px 17px; }
   .party-button > span:first-child { grid-column: 1; grid-row: 1; }
   .party-button > strong { grid-column: 2; grid-row: 1; text-align: right; }
