@@ -461,7 +461,7 @@ function Table({
   return (
     <div className={`ledger-table${onSelect ? " selectable-table" : ""}`}>
       <div className={`ledger-row ledger-head${onSelect ? " selectable-ledger-row" : ""}`}>
-        {onSelect && <span>SELECT</span>}
+        {onSelect && <span aria-label="Select transaction" />}
         <span>DATE (AD / BS)</span>
         <span>PARTY</span>
         <span>TYPE</span>
@@ -471,7 +471,7 @@ function Table({
 
       {entries.map((entry) => (
         <div className={`ledger-row${onSelect ? " selectable-ledger-row" : ""}${selectedId === entry.id ? " is-selected" : ""}`} key={entry.id}>
-          {onSelect && <button type="button" className="transaction-select-button" aria-pressed={selectedId === entry.id} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onClick={() => onSelect(entry)}>{selectedId === entry.id ? "Selected" : "Select"}</button>}
+          {onSelect && <input type="checkbox" className="transaction-select-checkbox" checked={selectedId === entry.id} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onChange={() => onSelect(entry)} />}
           <span>
             <b>{entry.ad}</b>
             <small>{entry.bs} BS</small>
