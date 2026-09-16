@@ -449,14 +449,16 @@ function Table({
   entries,
   parties,
   emptyMessage = "No transactions recorded yet.",
-  selectedId,
+  selectedIds,
   onSelect,
+  selectionDisabled = false,
 }: {
   entries: Entry[];
   parties: Party[];
   emptyMessage?: string;
-  selectedId?: string | null;
+  selectedIds?: Set<string>;
   onSelect?: (entry: Entry) => void;
+  selectionDisabled?: boolean;
 }) {
   return (
     <div className={`ledger-table${onSelect ? " selectable-table" : ""}`}>
@@ -470,8 +472,8 @@ function Table({
       </div>
 
       {entries.map((entry) => (
-        <div className={`ledger-row${onSelect ? " selectable-ledger-row" : ""}${selectedId === entry.id ? " is-selected" : ""}`} key={entry.id}>
-          {onSelect && <input type="checkbox" className="transaction-select-checkbox" checked={selectedId === entry.id} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onChange={() => onSelect(entry)} />}
+        <div className={`ledger-row${onSelect ? " selectable-ledger-row" : ""}${selectedIds?.has(entry.id) ? " is-selected" : ""}`} key={entry.id}>
+          {onSelect && <input type="checkbox" className="transaction-select-checkbox" checked={selectedIds?.has(entry.id) ?? false} disabled={selectionDisabled} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onChange={() => onSelect(entry)} />}
           <span>
             <b>{entry.ad}</b>
             <small>{entry.bs} BS</small>
@@ -1613,28 +1615,28 @@ function PartyDetail({
   entries,
   edit,
   remove,
-  deleteTransaction,
+  deleteTransactions,
 }: {
   party: Party;
   entries: Entry[];
   edit: () => void;
   remove: () => void;
-  deleteTransaction: (entry: Entry) => Promise<boolean>;
+  deleteTransactions: (ids: string[]) => Promise<string[]>;
 }) {
-  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
   const rows = entries.filter(
     (entry) =>
       entry.partyId === party.id,
   );
-  const selectedTransaction = rows.find((entry) => entry.id === selectedTransactionId);
+  const selectedTransactions = rows.filter((entry) => selectedTransactionIds.has(entry.id));
 
-  const removeSelectedTransaction = async () => {
-    if (!selectedTransaction || !window.confirm(`Delete this ${selectedTransaction.type.toLowerCase()} of ${money(selectedTransaction.amount)} on ${selectedTransaction.bs} BS? This cannot be undone.`)) return;
+  const removeSelectedTransactions = async () => {
+    if (selectedTransactions.length === 0 || !window.confirm(`Delete ${selectedTransactions.length} selected transaction${selectedTransactions.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
     setDeletingTransaction(true);
-    const deleted = await deleteTransaction(selectedTransaction);
+    const deletedIds = await deleteTransactions(selectedTransactions.map((entry) => entry.id));
     setDeletingTransaction(false);
-    if (deleted) setSelectedTransactionId(null);
+    setSelectedTransactionIds((current) => new Set([...current].filter((id) => !deletedIds.includes(id))));
   };
 
   const purchased = rows
@@ -1781,12 +1783,12 @@ function PartyDetail({
           </button>
         </div>
 
-        {selectedTransaction && (
+        {selectedTransactions.length > 0 && (
           <div className="selected-transaction-bar">
-            <span>Selected {selectedTransaction.type.toLowerCase()} · {money(selectedTransaction.amount)} · {selectedTransaction.bs} BS</span>
-            <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransaction}>
+            <span>{selectedTransactions.length} transaction{selectedTransactions.length === 1 ? "" : "s"} selected</span>
+            <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransactions}>
               <Trash2 size={14} aria-hidden="true" />
-              {deletingTransaction ? "Deleting..." : "Delete transaction"}
+              {deletingTransaction ? "Deleting..." : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}`}
             </button>
           </div>
         )}
@@ -1795,8 +1797,14 @@ function PartyDetail({
           entries={rows}
           parties={[party]}
           emptyMessage="No transactions for this party yet."
-          selectedId={selectedTransactionId}
-          onSelect={(entry) => setSelectedTransactionId((current) => current === entry.id ? null : entry.id)}
+          selectedIds={selectedTransactionIds}
+          selectionDisabled={deletingTransaction}
+          onSelect={(entry) => setSelectedTransactionIds((current) => {
+            const next = new Set(current);
+            if (next.has(entry.id)) next.delete(entry.id);
+            else next.add(entry.id);
+            return next;
+          })}
         />
       </section>
     </div>
@@ -2361,22 +2369,29 @@ export default function App() {
     go("parties");
   };
 
-  const deleteTransaction = async (entry: Entry): Promise<boolean> => {
+  const deleteTransactions = async (ids: string[]): Promise<string[]> => {
     const { data, error } = await supabase
       .from("transactions")
       .delete()
-      .eq("id", entry.id)
-      .select("id")
-      .single();
+      .in("id", ids)
+      .select("id");
 
-    if (error || !data) {
-      showNotice("Could not delete transaction", error?.message ?? "Transaction was not removed.", "error");
-      return false;
+    if (error) {
+      showNotice("Could not delete transactions", error.message, "error");
+      return [];
     }
 
-    setEntries((items) => items.filter((item) => item.id !== entry.id));
-    showNotice("Transaction deleted", `${entry.type === "PURCHASE" ? "Purchase" : "Payment"} of ${money(entry.amount)} was removed.`);
-    return true;
+    const deletedIds = (data ?? []).map((item) => item.id);
+    const deletedSet = new Set(deletedIds);
+    if (deletedIds.length > 0) {
+      setEntries((items) => items.filter((item) => !deletedSet.has(item.id)));
+    }
+    if (deletedIds.length === ids.length) {
+      showNotice("Transactions deleted", `${deletedIds.length} transaction${deletedIds.length === 1 ? "" : "s"} removed. Balances have been updated.`);
+    } else {
+      showNotice("Some transactions were not deleted", `${deletedIds.length} of ${ids.length} selected transactions were removed.`, "error");
+    }
+    return deletedIds;
   };
 
   /* ADD TRANSACTION */
@@ -2604,7 +2619,7 @@ export default function App() {
           remove={() =>
             deleteParty(party)
           }
-          deleteTransaction={deleteTransaction}
+          deleteTransactions={deleteTransactions}
         />
       );
     }
