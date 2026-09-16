@@ -7,21 +7,29 @@ import {
 
 import {
   ArrowRight,
-  CalendarDays,
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle2,
   Check,
   Download,
   FileText,
   LayoutDashboard,
   LogOut,
+  MapPin,
+  Phone,
   Plus,
   Search,
   Trash2,
   UsersRound,
+  X,
 } from "lucide-react";
 
 import { supabase } from "./lib/supabase";
+import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
+import NepaliDate from "nepali-date-converter";
 
 type EntryType = "PURCHASE" | "PAYMENT";
+type DashboardPeriod = "week" | "month" | "year" | "custom" | "lifetime";
 
 type Party = {
   id: string;
@@ -42,6 +50,13 @@ type Entry = {
   description: string;
 };
 
+type Notice = {
+  id: number;
+  title: string;
+  detail: string;
+  tone: "success" | "error";
+};
+
 const money = (value: number) =>
   `NPR ${value.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -59,6 +74,34 @@ const balanceOf = (entries: Entry[], partyId: string) =>
         sum + (entry.type === "PURCHASE" ? entry.amount : -entry.amount),
       0,
     );
+
+const bsDate = (date: Date) => new NepaliDate(date).format("YYYY-MM-DD");
+
+function currentBsRange(period: "week" | "month" | "year") {
+  const today = new NepaliDate();
+  const year = today.getYear();
+  const month = today.getMonth();
+  let first: Date;
+  let last: Date;
+
+  if (period === "week") {
+    first = today.toJsDate();
+    first.setDate(first.getDate() - today.getDay());
+    last = new Date(first);
+    last.setDate(last.getDate() + 6);
+  } else {
+    first = new NepaliDate(year, period === "month" ? month : 0, 1).toJsDate();
+    const next = period === "year"
+      ? new NepaliDate(year + 1, 0, 1)
+      : month === 11
+        ? new NepaliDate(year + 1, 0, 1)
+        : new NepaliDate(year, month + 1, 1);
+    last = next.toJsDate();
+    last.setDate(last.getDate() - 1);
+  }
+
+  return { from: bsDate(first), to: bsDate(last) };
+}
 
 function currentRoute() {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -98,8 +141,8 @@ function Shell({
 }) {
   const links = [
     ["dashboard", "Dashboard", LayoutDashboard],
-    ["parties", "Add party", UsersRound],
-    ["add-entry", "Main entry", Plus],
+    ["parties", "Parties", UsersRound],
+    ["add-entry", "New transaction", Plus],
     ["transactions", "Transactions", FileText],
   ] as const;
 
@@ -137,9 +180,9 @@ function Shell({
         </nav>
 
         <footer>
-          <span>FAMILY BUSINESS / KATHMANDU</span>
+          <span>RKH SUPPLIERS · KATHMANDU</span>
 
-          <small>Records are kept private.</small>
+          <small>Private business records</small>
 
           <button className="outline-button" onClick={onLogout}>
             <LogOut size={14} />
@@ -179,16 +222,16 @@ function Header({
 
         <p>{description}</p>
 
-        {action && label === "Back to parties" && (
+        {action && label?.startsWith("Back to") && (
           <button className="back-link" onClick={action}>
-            Back to parties
+            {label}
           </button>
         )}
       </div>
 
-      {action && label !== "Back to parties" && (
+      {action && !label?.startsWith("Back to") && (
         <button className="black-button" onClick={action}>
-          <Plus size={15} />
+          {label?.startsWith("View") ? <ArrowRight size={15} /> : <Plus size={15} />}
           {label}
         </button>
       )}
@@ -203,14 +246,16 @@ function Header({
 function Table({
   entries,
   parties,
+  emptyMessage = "No transactions recorded yet.",
 }: {
   entries: Entry[];
   parties: Party[];
+  emptyMessage?: string;
 }) {
   return (
     <div className="ledger-table">
       <div className="ledger-row ledger-head">
-        <span>DATE</span>
+        <span>DATE (AD / BS)</span>
         <span>PARTY</span>
         <span>TYPE</span>
         <span>DESCRIPTION</span>
@@ -233,14 +278,15 @@ function Table({
           </span>
 
           <span className={`type ${entry.type.toLowerCase()}`}>
-            {entry.type}
+            {entry.type === "PURCHASE" ? "Purchase" : "Payment"}
           </span>
 
-          <span>{entry.description}</span>
+          <span>{entry.description || "—"}</span>
 
           <strong>{money(entry.amount)}</strong>
         </div>
       ))}
+      {entries.length === 0 && <p className="empty-state">{emptyMessage}</p>}
     </div>
   );
 }
@@ -256,49 +302,93 @@ function Dashboard({
   parties: Party[];
   entries: Entry[];
 }) {
-  const purchased = entries
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
+  const [customFrom, setCustomFrom] = useState(() => currentBsRange("month").from);
+  const [customTo, setCustomTo] = useState(() => todayDates().bs);
+  const range = period === "custom"
+    ? { from: customFrom, to: customTo }
+    : currentBsRange(period === "lifetime" ? "month" : period);
+  const invalidRange = period === "custom" && range.from > range.to;
+  const periodEntries = period === "lifetime" ? entries : invalidRange ? [] : entries.filter(
+    (entry) => entry.bs >= range.from && entry.bs <= range.to,
+  );
+  const entriesAsOfEnd = period === "lifetime" ? entries : invalidRange ? [] : entries.filter(
+    (entry) => entry.bs <= range.to,
+  );
+  const purchased = periodEntries
     .filter((entry) => entry.type === "PURCHASE")
     .reduce((sum, entry) => sum + entry.amount, 0);
 
-  const collected = entries
+  const collected = periodEntries
     .filter((entry) => entry.type === "PAYMENT")
     .reduce((sum, entry) => sum + entry.amount, 0);
+
+  const dueParties = parties
+    .map((party) => ({ party, balance: balanceOf(entriesAsOfEnd, party.id) }))
+    .filter(({ balance }) => balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+  const outstanding = dueParties.reduce((total, item) => total + item.balance, 0);
+  const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
 
   return (
     <>
       <Header
-        eyebrow="DAILY LEDGER"
+        eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
-        description="A clear view of what has moved, what is owed, and what needs your attention."
+        description="Track purchases, payments, and outstanding party balances in one place."
         action={() => go("add-entry")}
-        label="Main entry"
+        label="New transaction"
       />
+
+      <section className="dashboard-filter" aria-label="Dashboard date range">
+        <div className="period-tabs" role="group" aria-label="Date range preset">
+          {(["week", "month", "year", "lifetime", "custom"] as const).map((item) => (
+            <button
+              type="button"
+              key={item}
+              className={period === item ? "active" : ""}
+              aria-pressed={period === item}
+              onClick={() => setPeriod(item)}
+            >
+              {item[0].toUpperCase() + item.slice(1)}
+            </button>
+          ))}
+        </div>
+        <span className="period-range">{period === "lifetime" ? "Lifetime · All recorded dates" : `${periodName} · ${range.from} to ${range.to} BS`}</span>
+        {period === "custom" && (
+          <div className="custom-range">
+            <div><span>From (BS)</span><NepaliDatePicker value={customFrom} onChange={(bs) => setCustomFrom(bs)} /></div>
+            <div><span>To (BS)</span><NepaliDatePicker value={customTo} onChange={(bs) => setCustomTo(bs)} /></div>
+          </div>
+        )}
+        {invalidRange && <p className="range-error">The start date must be on or before the end date.</p>}
+      </section>
 
       <section className="summary-grid">
         <div>
-          <span>Total money to be collected</span>
+          <span>Outstanding to collect</span>
 
           <strong>
-            {money(Math.max(0, purchased - collected))}
+            {money(outstanding)}
           </strong>
 
-          <small>Outstanding across all parties</small>
+          <small>{period === "lifetime" ? "Current balance across all records" : `As of ${range.to} BS`}</small>
         </div>
 
         <div>
-          <span>Total money collected</span>
+          <span>Payments recorded</span>
 
           <strong>{money(collected)}</strong>
 
-          <small>Payments received</small>
+          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
         </div>
 
         <div>
-          <span>Total purchased</span>
+          <span>Purchases recorded</span>
 
           <strong>{money(purchased)}</strong>
 
-          <small>Goods recorded</small>
+          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
         </div>
 
         <div>
@@ -306,7 +396,23 @@ function Dashboard({
 
           <strong>{parties.length}</strong>
 
-          <small>In the directory</small>
+          <small>In your directory</small>
+        </div>
+
+      </section>
+
+      <section className="activity-card" aria-label="Ledger activity summary">
+        <div className="activity-copy">
+          <span className="eyebrow">AT A GLANCE</span>
+          <h2>Business activity</h2>
+          <p>{period === "lifetime" ? "Purchases and payments across your full ledger." : "Purchases and payments in the selected period."}</p>
+          <div className="activity-legend">
+            <span><i className="legend-purchase" /> Purchases <strong>{money(purchased)}</strong></span>
+            <span><i className="legend-payment" /> Payments <strong>{money(collected)}</strong></span>
+          </div>
+        </div>
+        <div className="activity-chart" style={{ background: purchased + collected ? `conic-gradient(#d9a63d 0 ${(purchased / (purchased + collected)) * 100}%, #08704a 0 100%)` : "#e7eee5" }}>
+          <div><strong>{periodEntries.length}</strong><small>transactions</small></div>
         </div>
       </section>
 
@@ -315,7 +421,7 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                LATEST MOVEMENT
+                {period === "lifetime" ? "LATEST MOVEMENT" : "IN THIS PERIOD"}
               </span>
 
               <h2>Recent transactions</h2>
@@ -325,14 +431,15 @@ function Dashboard({
               className="text-link"
               onClick={() => go("transactions")}
             >
-              View all
+              All transactions
               <ArrowRight size={14} />
             </button>
           </div>
 
           <Table
-            entries={entries.slice(0, 10)}
+            entries={periodEntries.slice(0, 10)}
             parties={parties}
+            emptyMessage={period === "lifetime" ? "No transactions recorded yet." : "No transactions in this date range."}
           />
         </section>
 
@@ -340,27 +447,22 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                FOLLOW-UP
+                {period === "lifetime" ? "CURRENT BALANCES" : "AS OF PERIOD END"}
               </span>
 
-              <h2>Money to be collected</h2>
+              <h2>Outstanding balances</h2>
             </div>
 
             <button
               className="text-link"
               onClick={() => go("parties")}
             >
-              View all
+              View parties
               <ArrowRight size={14} />
             </button>
           </div>
 
-          {parties
-            .filter(
-              (party) =>
-                balanceOf(entries, party.id) > 0,
-            )
-            .map((party) => (
+          {dueParties.map(({ party, balance }) => (
               <button
                 className="outstanding-row"
                 key={party.id}
@@ -374,12 +476,13 @@ function Dashboard({
                 </span>
 
                 <b>
-                  {money(
-                    balanceOf(entries, party.id),
-                  )}
+                  {money(balance)}
                 </b>
               </button>
             ))}
+          {dueParties.length === 0 && (
+            <p className="empty-state">{period === "lifetime" ? "No outstanding balances." : "No outstanding balances as of this date."}</p>
+          )}
         </section>
       </div>
     </>
@@ -410,9 +513,9 @@ function Parties({
   return (
     <>
       <Header
-        eyebrow="PARTY DIRECTORY"
-        title="Add party"
-        description="Keep one clear record for every supplier, retailer, or customer."
+        eyebrow="DIRECTORY"
+        title="Parties"
+        description="Manage the suppliers, retailers, and customers in your ledger."
         action={() => go("add-party")}
         label="Add party"
       />
@@ -422,7 +525,7 @@ function Parties({
 
         <input
           aria-label="Search parties"
-          placeholder="Search name, company, or contact"
+          placeholder="Search by name, company, or phone"
           value={query}
           onChange={(event) =>
             setQuery(event.target.value)
@@ -471,13 +574,20 @@ function Parties({
               >
                 {balance > 0
                   ? money(balance)
-                  : "Settled"}
+                  : balance < 0
+                    ? `Advance ${money(Math.abs(balance))}`
+                    : "Settled"}
               </strong>
 
               <ArrowRight size={15} />
             </button>
           );
         })}
+        {shown.length === 0 && (
+          <p className="empty-state">
+            {query ? "No parties match your search." : "No parties yet. Add a party to start recording transactions."}
+          </p>
+        )}
       </section>
     </>
   );
@@ -551,9 +661,9 @@ function AddParty({
   return (
     <>
       <Header
-        eyebrow="PARTY DIRECTORY / NEW"
+        eyebrow="PARTIES / NEW"
         title="Add party"
-        description="Enter the party information you currently keep on paper."
+        description="Create an account for a supplier, retailer, or customer."
         action={() => go("parties")}
         label="Back to parties"
       />
@@ -575,7 +685,7 @@ function AddParty({
                   name: event.target.value,
                 })
               }
-              placeholder="Party name"
+              placeholder="Full name or business name"
             />
           </FormField>
 
@@ -612,7 +722,7 @@ function AddParty({
                   location: event.target.value,
                 })
               }
-              placeholder="Location"
+              placeholder="City or area"
             />
           </FormField>
         </div>
@@ -649,8 +759,8 @@ function AddParty({
             <Check size={15} />
 
             {saving
-              ? "Saving..."
-              : "Save party"}
+              ? "Saving party..."
+              : "Add party"}
           </button>
         </div>
       </form>
@@ -668,7 +778,7 @@ function AddEntry({
 }: {
   parties: Party[];
   save: (
-    entry: Omit<Entry, "id">,
+    entry: Omit<Entry, "id"> & { paidNow?: number },
   ) => Promise<boolean>;
 }) {
   const params = new URLSearchParams(
@@ -682,10 +792,8 @@ function AddEntry({
     partyId: initialParty,
     type: "PURCHASE" as EntryType,
     amount: "",
-    bs: "",
-    ad: new Date()
-      .toISOString()
-      .slice(0, 10),
+    paidNow: "",
+    ...todayDates(),
     description: "",
   });
 
@@ -694,6 +802,13 @@ function AddEntry({
 
   const [error, setError] =
     useState("");
+
+  const [partiallyPaid, setPartiallyPaid] = useState(false);
+
+  const purchaseCents = Math.round(Number(form.amount || 0) * 100);
+  const paidNowCents = partiallyPaid ? Math.round(Number(form.paidNow || 0) * 100) : 0;
+  const remainingCents = Math.max(0, purchaseCents - paidNowCents);
+  const invalidPaidNow = form.type === "PURCHASE" && partiallyPaid && (paidNowCents <= 0 || paidNowCents >= purchaseCents);
 
   const submit = async (
     event: FormEvent,
@@ -709,6 +824,11 @@ function AddEntry({
       return;
     }
 
+    if (invalidPaidNow) {
+      setError("Enter a partial payment greater than zero and less than the purchase total.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -716,6 +836,7 @@ function AddEntry({
       partyId: form.partyId,
       type: form.type,
       amount: Number(form.amount),
+      paidNow: form.type === "PURCHASE" && partiallyPaid ? paidNowCents / 100 : 0,
       ad: form.ad,
       bs: form.bs,
       description: form.description,
@@ -735,9 +856,9 @@ function AddEntry({
   return (
     <>
       <Header
-        eyebrow="MAIN ENTRY / NEW"
-        title="Main entry"
-        description="Record one purchase or one payment. The balance is recalculated from every entry."
+        eyebrow="TRANSACTIONS / NEW"
+        title="New transaction"
+        description="Record a purchase, an immediate part payment, or a later payment. Party balances update automatically."
         action={() => go("transactions")}
         label="View transactions"
       />
@@ -746,10 +867,17 @@ function AddEntry({
         className="form-panel"
         onSubmit={submit}
       >
-        <h2>Entry details</h2>
+        <h2>Transaction details</h2>
 
-        <div className="form-grid">
-          <FormField label="Select party *">
+        {parties.length === 0 && (
+          <div className="form-notice">
+            Add a party before recording a transaction.
+            <button type="button" className="text-link" onClick={() => go("add-party")}>Add party <ArrowRight size={14} /></button>
+          </div>
+        )}
+
+        <div className="form-grid transaction-form-grid">
+          <FormField label="Party *">
             <select
               required
               value={form.partyId}
@@ -762,7 +890,7 @@ function AddEntry({
               }
             >
               <option value="">
-                Choose a party
+                Select a party
               </option>
 
               {parties.map((party) => (
@@ -776,82 +904,88 @@ function AddEntry({
             </select>
           </FormField>
 
-          <FormField label="Entry type *">
+          <FormField label="Transaction type *">
             <select
               value={form.type}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  type: event.target
-                    .value as EntryType,
-                })
-              }
+              onChange={(event) => {
+                setForm({ ...form, type: event.target.value as EntryType, paidNow: "" });
+                setPartiallyPaid(false);
+              }}
             >
               <option value="PURCHASE">
-                Purchased amount
+                Purchase
               </option>
 
               <option value="PAYMENT">
-                Money given / paid
+                Payment received
               </option>
             </select>
           </FormField>
 
-          <FormField label="Amount (NPR) *">
-            <input
-              required
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={form.amount}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  amount:
-                    event.target.value,
-                })
-              }
-              placeholder="0.00"
-            />
-          </FormField>
-
-          <FormField label="Date (Bikram Sambat) *">
-            <div className="date-input">
+          <div className="amount-column">
+            <FormField label={form.type === "PURCHASE" ? "Purchase total (NPR) *" : "Payment amount (NPR) *"}>
               <input
                 required
-                pattern="20[0-9]{2}-[0-9]{2}-[0-9]{2}"
-                placeholder="YYYY-MM-DD"
-                value={form.bs}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    bs: event.target.value,
-                  })
-                }
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={form.amount}
+                onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                placeholder="0.00"
               />
+            </FormField>
 
-              <CalendarDays size={15} />
-            </div>
+            {form.type === "PURCHASE" && (
+              <>
+                <label className="partial-toggle">
+                  <input
+                    type="checkbox"
+                    checked={partiallyPaid}
+                    onChange={(event) => {
+                      setPartiallyPaid(event.target.checked);
+                      if (!event.target.checked) setForm({ ...form, paidNow: "" });
+                    }}
+                  />
+                  <span>Partially paid</span>
+                </label>
+                {partiallyPaid && (
+                  <FormField label="Payment received now (NPR) *">
+                    <input
+                      required
+                      type="number"
+                      min="0.01"
+                      max={form.amount || undefined}
+                      step="0.01"
+                      value={form.paidNow}
+                      onChange={(event) => setForm({ ...form, paidNow: event.target.value })}
+                      placeholder="0.00"
+                    />
+                    <small>Enter the amount received now. The rest stays outstanding.</small>
+                    {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the purchase total.</small>}
+                  </FormField>
+                )}
+              </>
+            )}
+          </div>
 
-            <small>
-              Format: YYYY-MM-DD BS
-            </small>
-          </FormField>
-
-          <FormField label="AD date *">
-            <input
-              required
-              type="date"
-              value={form.ad}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  ad: event.target.value,
-                })
-              }
+          <div className="form-field">
+            <span>Nepali date (BS) *</span>
+            <NepaliDatePicker
+              value={form.bs}
+              onChange={(bs, ad) => setForm({ ...form, bs, ad })}
             />
-          </FormField>
+            <small>Select a date from the Nepali calendar.</small>
+          </div>
+
         </div>
+
+        {form.type === "PURCHASE" && purchaseCents > 0 && (
+          <div className="payment-preview" aria-live="polite">
+            <div><span>Purchase total</span><strong>{money(purchaseCents / 100)}</strong></div>
+            <div><span>Paid now</span><strong>{money(paidNowCents / 100)}</strong></div>
+            <div><span>Remaining from this purchase</span><strong>{money(remainingCents / 100)}</strong></div>
+          </div>
+        )}
 
         <FormField label="Description">
           <textarea
@@ -863,7 +997,7 @@ function AddEntry({
                   event.target.value,
               })
             }
-            placeholder="Goods purchased, payment reference, or notes"
+            placeholder="What was purchased or paid?"
           />
         </FormField>
 
@@ -884,13 +1018,13 @@ function AddEntry({
 
           <button
             className="black-button"
-            disabled={saving}
+            disabled={saving || invalidPaidNow}
           >
             <Check size={15} />
 
             {saving
-              ? "Saving..."
-              : "Save entry"}
+              ? "Saving transaction..."
+              : "Save transaction"}
           </button>
         </div>
       </form>
@@ -950,29 +1084,29 @@ function Transactions({
   return (
     <>
       <Header
-        eyebrow="LEDGER / ALL ENTRIES"
+        eyebrow="LEDGER / ALL TRANSACTIONS"
         title="Transactions"
-        description="Search and filter every purchase and payment in the business."
+        description="Review purchases and payments. Filter the list or export the current results."
         action={() => go("add-entry")}
-        label="Main entry"
+        label="New transaction"
       />
 
       <div className="transaction-actions">
         <button
           className="outline-button"
+          disabled={shown.length === 0}
           onClick={() => {
+            const csvCell = (value: string | number) =>
+              `"${String(value).replaceAll('"', '""')}"`;
             const csv = [
               "date_bs,party,type,amount,description",
               ...shown.map(
                 (entry) =>
-                  `${entry.bs},${partyName(
+                  [entry.bs, partyName(
                     parties,
                     entry.partyId,
-                  )},${entry.type},${
-                    entry.amount
-                  },${
-                    entry.description
-                  }`,
+                  ), entry.type, entry.amount, entry.description]
+                    .map(csvCell).join(","),
               ),
             ].join("\n");
 
@@ -997,7 +1131,7 @@ function Transactions({
           }}
         >
           <Download size={15} />
-          Export CSV
+          Export results
         </button>
       </div>
 
@@ -1021,21 +1155,21 @@ function Transactions({
           }
         >
           <option value="all">
-            All entries
+            All types
           </option>
 
           <option value="PURCHASE">
-            Purchased
+            Purchases
           </option>
 
           <option value="PAYMENT">
-            Money given
+            Payments
           </option>
         </select>
 
         <input
           aria-label="From Nepali date"
-          placeholder="From BS · YYYY-MM-DD"
+          placeholder="From BS (YYYY-MM-DD)"
           value={from}
           onChange={(event) =>
             setFrom(event.target.value)
@@ -1044,7 +1178,7 @@ function Transactions({
 
         <input
           aria-label="To Nepali date"
-          placeholder="To BS · YYYY-MM-DD"
+          placeholder="To BS (YYYY-MM-DD)"
           value={to}
           onChange={(event) =>
             setTo(event.target.value)
@@ -1056,6 +1190,7 @@ function Transactions({
         <Table
           entries={shown}
           parties={parties}
+          emptyMessage={entries.length === 0 ? "No transactions yet. Add a transaction to start your ledger." : "No transactions match these filters."}
         />
       </section>
     </>
@@ -1113,9 +1248,9 @@ function EditParty({
   return (
     <>
       <Header
-        eyebrow="PARTY DIRECTORY / EDIT"
+        eyebrow="PARTIES / EDIT"
         title="Edit party"
-        description="Update the contact information for this party."
+        description="Update this party's account and contact details."
         action={() =>
           go(`parties/${party.id}`)
         }
@@ -1222,7 +1357,7 @@ function EditParty({
             <Check size={15} />
 
             {saving
-              ? "Saving..."
+              ? "Saving changes..."
               : "Save changes"}
           </button>
         </div>
@@ -1274,56 +1409,57 @@ function PartyDetail({
     );
 
   return (
-    <>
+    <div className="party-detail">
       <Header
-        eyebrow="PARTY LEDGER"
+        eyebrow="PARTY ACCOUNT"
         title={party.name}
         description={
           party.company ||
-          "Party account"
+          "Account overview and transaction history"
         }
         action={() =>
           go(
             `add-entry?party=${party.id}`,
           )
         }
-        label="Add transaction"
+        label="New transaction"
       />
 
-      <button
-        className="back-link"
-        onClick={() => go("parties")}
-      >
-        Back to parties
-      </button>
+      <div className="party-header-info" aria-label="Party contact information">
+        <div>
+          <Phone size={17} aria-hidden="true" />
+          <span><small>Contact number</small><strong>{party.contact || "Not provided"}</strong></span>
+        </div>
+        <div>
+          <MapPin size={17} aria-hidden="true" />
+          <span><small>Location</small><strong>{party.location || "Not provided"}</strong></span>
+        </div>
+      </div>
 
-      <div className="party-actions">
-        <button
-          className="outline-button"
-          onClick={edit}
-        >
-          Edit party
+      <div className="party-toolbar">
+        <button className="party-back-button" onClick={() => go("parties")}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to parties
         </button>
-
-        <button
-          className="delete-button"
-          onClick={remove}
-        >
-          <Trash2 size={14} />
-          Delete party
-        </button>
+        <div className="party-actions">
+          <button className="outline-button" onClick={edit}>Edit party</button>
+          <button className="delete-button" onClick={remove}>
+            <Trash2 size={14} />
+            Delete party
+          </button>
+        </div>
       </div>
 
       <section className="summary-grid">
         <div>
-          <span>Total purchased</span>
+          <span>Purchases</span>
           <strong>
             {money(purchased)}
           </strong>
         </div>
 
         <div>
-          <span>Total paid</span>
+          <span>Payments</span>
           <strong>{money(paid)}</strong>
         </div>
 
@@ -1343,7 +1479,7 @@ function PartyDetail({
         </div>
 
         <div>
-          <span>Credit / advance</span>
+          <span>Advance payments</span>
 
           <strong>
             {money(
@@ -1356,28 +1492,12 @@ function PartyDetail({
         </div>
       </section>
 
-      <section className="party-info reference-panel">
-        <div>
-          <span>CONTACT</span>
-          <b>
-            {party.contact || "—"}
-          </b>
-        </div>
-
-        <div>
-          <span>LOCATION</span>
-          <b>
-            {party.location || "—"}
-          </b>
-        </div>
-
-        <div>
+      {party.notes && (
+        <section className="party-notes reference-panel">
           <span>NOTES</span>
-          <b>
-            {party.notes || "No notes"}
-          </b>
-        </div>
-      </section>
+          <p>{party.notes}</p>
+        </section>
+      )}
 
       <section className="reference-panel table-panel">
         <div className="panel-heading">
@@ -1395,9 +1515,10 @@ function PartyDetail({
         <Table
           entries={rows}
           parties={[party]}
+          emptyMessage="No transactions for this party yet."
         />
       </section>
-    </>
+    </div>
   );
 }
 
@@ -1455,14 +1576,11 @@ function Login() {
             </p>
 
             <h1>
-              Private business ledger.
+              Your business ledger.
             </h1>
 
             <p className="login-intro">
-              Purchases, payments and
-              party balances — kept
-              together in one private
-              record.
+              Keep purchases, payments, and party balances organized in one secure place.
             </p>
           </div>
 
@@ -1490,9 +1608,7 @@ function Login() {
               <h2>Sign in</h2>
 
               <p>
-                Enter your account
-                details to open the
-                ledger.
+                Use your account credentials to access the ledger.
               </p>
             </div>
 
@@ -1551,8 +1667,7 @@ function Login() {
             </button>
 
             <p className="login-security">
-              Private access for RKH
-              Suppliers.
+              Authorized access for RKH Suppliers.
             </p>
           </form>
         </section>
@@ -1587,6 +1702,17 @@ export default function App() {
 
   const [dataError, setDataError] =
     useState("");
+
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const showNotice = (title: string, detail: string, tone: Notice["tone"] = "success") => {
+    setNotice({ id: Date.now(), title, detail, tone });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 4200);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   /* ROUTING */
 
@@ -1789,6 +1915,8 @@ export default function App() {
       },
     ]);
 
+    showNotice("Party added", `${data.name} is ready for transactions.`);
+
     return true;
   };
 
@@ -1838,6 +1966,8 @@ export default function App() {
       ),
     );
 
+    showNotice("Party updated", `${party.name}'s details were saved.`);
+
     return true;
   };
 
@@ -1861,7 +1991,7 @@ export default function App() {
         .eq("id", party.id);
 
     if (error) {
-      window.alert(error.message);
+      showNotice("Could not delete party", error.message, "error");
 
       return;
     }
@@ -1873,64 +2003,85 @@ export default function App() {
       ),
     );
 
+    setEntries((items) => items.filter((entry) => entry.partyId !== party.id));
+    showNotice("Party deleted", `${party.name} and its transaction history were removed.`);
+
     go("parties");
   };
 
   /* ADD TRANSACTION */
 
   const addEntry = async (
-    entry: Omit<Entry, "id">,
+    entry: Omit<Entry, "id"> & { paidNow?: number },
   ): Promise<boolean> => {
+    const paidNow = Math.round((entry.paidNow ?? 0) * 100) / 100;
+    if (entry.type === "PURCHASE" && (paidNow < 0 || paidNow > entry.amount)) {
+      return false;
+    }
+
+    const transactionRows: Array<{
+      party_id: string;
+      type: EntryType;
+      amount: number;
+      date_ad: string;
+      date_bs: string;
+      description: string | null;
+    }> = [{
+      party_id: entry.partyId,
+      type: entry.type,
+      amount: entry.amount,
+      date_ad: entry.ad,
+      date_bs: entry.bs,
+      description: entry.description.trim() || null,
+    }];
+
+    if (entry.type === "PURCHASE" && paidNow > 0) {
+      transactionRows.push({
+        party_id: entry.partyId,
+        type: "PAYMENT",
+        amount: paidNow,
+        date_ad: entry.ad,
+        date_bs: entry.bs,
+        description: "Payment received with purchase",
+      });
+    }
+
     const { data, error } =
       await supabase
         .from("transactions")
-        .insert({
-          party_id:
-            entry.partyId,
+        .insert(transactionRows)
+        .select();
 
-          type: entry.type,
-
-          amount: entry.amount,
-
-          date_ad: entry.ad,
-
-          date_bs: entry.bs,
-
-          description:
-            entry.description.trim() ||
-            null,
-        })
-        .select()
-        .single();
-
-    if (error) {
+    if (error || !data) {
       console.error(error);
 
       return false;
     }
 
-    const saved: Entry = {
-      id: data.id,
-
-      partyId: data.party_id,
-
-      type:
-        data.type as EntryType,
-
-      amount: Number(data.amount),
-
-      ad: data.date_ad,
-
-      bs: data.date_bs,
-
-      description:
-        data.description ?? "",
-    };
+    const saved: Entry[] = data.map((row) => ({
+      id: row.id,
+      partyId: row.party_id,
+      type: row.type as EntryType,
+      amount: Number(row.amount),
+      ad: row.date_ad,
+      bs: row.date_bs,
+      description: row.description ?? "",
+    }));
 
     setEntries((items) => [
-      saved,
+      ...saved,
       ...items,
     ]);
+
+    const name = partyName(parties, entry.partyId);
+    if (entry.type === "PURCHASE" && paidNow > 0) {
+      showNotice("Purchase and payment recorded", `${money(paidNow)} paid now · ${money(entry.amount - paidNow)} remaining for ${name}`);
+    } else {
+      showNotice(
+        entry.type === "PAYMENT" ? "Payment received" : "Purchase recorded",
+        `${money(entry.amount)} · ${name}`,
+      );
+    }
 
     return true;
   };
@@ -2089,11 +2240,32 @@ export default function App() {
   }
 
   return (
-    <Shell
-      active={current.path}
-      onLogout={logout}
-    >
-      {page}
-    </Shell>
+    <>
+      <Shell active={current.path} onLogout={logout}>
+        {page}
+      </Shell>
+      <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
+    </>
+  );
+}
+
+function ActionNotice({ notice, dismiss }: { notice: Notice | null; dismiss: () => void }) {
+  return (
+    <div className="notice-region" aria-live="polite" aria-atomic="true">
+      {notice && (
+        <div className={`action-notice ${notice.tone}`} key={notice.id} role={notice.tone === "error" ? "alert" : "status"}>
+          <span className="notice-icon" aria-hidden="true">
+            {notice.tone === "error" ? <AlertCircle size={19} /> : <CheckCircle2 size={19} />}
+          </span>
+          <span className="notice-copy">
+            <strong>{notice.title}</strong>
+            <small>{notice.detail}</small>
+          </span>
+          <button type="button" aria-label="Dismiss notification" onClick={dismiss}>
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

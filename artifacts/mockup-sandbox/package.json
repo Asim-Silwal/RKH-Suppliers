@@ -71,5 +71,8 @@
     "vaul": "^1.1.2",
     "vite": "catalog:",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "nepali-date-converter": "3.4.0"
   }
 }
