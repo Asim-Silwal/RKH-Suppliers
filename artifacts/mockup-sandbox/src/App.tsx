@@ -1022,22 +1022,17 @@ function AddParty({
 
 function AddEntry({
   parties,
+  initialPartyId,
   save,
 }: {
   parties: Party[];
+  initialPartyId: string;
   save: (
     entry: Omit<Entry, "id"> & { paidNow?: number },
   ) => Promise<boolean>;
 }) {
-  const params = new URLSearchParams(
-    window.location.search,
-  );
-
-  const initialParty =
-    params.get("party") ?? "";
-
   const [form, setForm] = useState({
-    partyId: initialParty,
+    partyId: initialPartyId,
     type: "PURCHASE" as EntryType,
     amount: "",
     paidNow: "",
@@ -1633,12 +1628,14 @@ function EditParty({
 
 function PartyDetail({
   party,
+  allParties,
   entries,
   edit,
   remove,
   deleteTransactions,
 }: {
   party: Party;
+  allParties: Party[];
   entries: Entry[];
   edit: () => void;
   remove: () => void;
@@ -1708,9 +1705,7 @@ function PartyDetail({
           "Account overview and transaction history"
         }
         action={() =>
-          go(
-            `add-entry?party=${party.id}`,
-          )
+          go(`add-entry/${encodeURIComponent(partySegment(party, allParties))}`)
         }
         label="New transaction"
       />
@@ -2650,6 +2645,7 @@ export default function App() {
       page = (
         <PartyDetail
           party={party}
+          allParties={parties}
           entries={entries}
           edit={() =>
             go(
@@ -2702,6 +2698,7 @@ export default function App() {
     page = (
       <AddEntry
         parties={parties}
+        initialPartyId={findPartyByRoute(parties, current.id ?? new URLSearchParams(window.location.search).get("party") ?? "")?.id ?? ""}
         save={addEntry}
       />
     );
