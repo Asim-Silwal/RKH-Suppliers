@@ -335,19 +335,3 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .activity-chart > div { width: 118px; height: 118px; }
   .summary-grid strong { font-size: 16px; }
 }
-
-.success-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px; background: rgba(242, 248, 255, .58); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); pointer-events: none; animation: success-backdrop 2.8s ease-in-out both; }
-.success-content { display: grid; justify-items: center; max-width: min(440px, 100%); text-align: center; color: #202e41; animation: success-content-in 2.8s ease-out both; }
-.success-mark { width: min(176px, 42vw); height: auto; margin-bottom: 20px; }
-.success-ring { stroke: #c9e7f9; stroke-dasharray: 409; stroke-dashoffset: 409; animation: success-draw-ring .8s .12s ease-out forwards; }
-.success-check { stroke: #0788cc; stroke-dasharray: 92; stroke-dashoffset: 92; animation: success-draw-check .48s .78s cubic-bezier(.2,.8,.2,1) forwards; }
-.success-content strong { font-size: clamp(20px, 4vw, 27px); font-weight: 650; letter-spacing: -.03em; }
-.success-content > span { max-width: 340px; margin-top: 7px; color: #586677; font-size: 13px; line-height: 1.5; }
-@keyframes success-backdrop { 0% { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); } 12%, 78% { opacity: 1; backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); } 100% { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); } }
-@keyframes success-content-in { 0% { opacity: 0; transform: scale(.88); } 18%, 78% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.03); } }
-@keyframes success-draw-ring { to { stroke-dashoffset: 0; } }
-@keyframes success-draw-check { to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .success-overlay, .success-content, .success-ring, .success-check { animation: none; }
-  .success-ring, .success-check { stroke-dashoffset: 0; }
-}
