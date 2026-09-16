@@ -182,12 +182,11 @@ function Shell({
   const links = role === "admin" ? [
     ["dashboard", "Dashboard", LayoutDashboard],
     ["parties", "Parties", UsersRound],
-    ["add-party", "Add Party", Plus],
-    ["add-entry", "Main Entry", Plus],
-    ["transactions", "Transactions", FileText],
+    ["add-entry", "Transactions", Plus],
+    ["transactions", "Statement", FileText],
   ] as const : [
     ["dashboard", "Dashboard", LayoutDashboard],
-    ["transactions", "Transactions", FileText],
+    ["transactions", "Statement", FileText],
   ] as const;
 
   return (
@@ -604,7 +603,7 @@ function Dashboard({
               className="text-link"
               onClick={() => go("transactions")}
             >
-              All transactions
+              View statement
               <ArrowRight size={14} />
             </button>
           </div>
@@ -1262,8 +1261,8 @@ function Transactions({
   return (
     <>
       <Header
-        eyebrow="LEDGER / ALL TRANSACTIONS"
-        title="Transactions"
+        eyebrow="LEDGER / STATEMENT"
+        title="Statement"
         description="Review purchases and payments. Filter the list or export the current results."
         action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
