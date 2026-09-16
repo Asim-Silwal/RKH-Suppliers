@@ -124,6 +124,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .form-grid .partial-toggle, .form-grid .partial-toggle:has(input:checked) { border-color: #dedee3; background: #f7f7f8; color: #333339; }
 .form-grid .partial-toggle input { accent-color: #34343b; }
 .form-field input[readonly] { background: #f7f7f8; color: #6d6d75; }
+.transaction-date-column { display: grid; align-content: start; gap: 16px; min-width: 0; }
 .payment-preview { border-color: #e4e4e8; background: #e4e4e8; }
 .payment-preview > div, .payment-preview > div:last-child { background: #f8f8f9; }
 .payment-preview span { color: #77777e; }

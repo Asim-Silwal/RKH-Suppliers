@@ -1046,6 +1046,8 @@ function AddEntry({
   const [error, setError] =
     useState("");
 
+  const [dateError, setDateError] = useState("");
+
   const [partiallyPaid, setPartiallyPaid] = useState(false);
   const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
   const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
@@ -1066,6 +1068,29 @@ function AddEntry({
     setError("");
   };
 
+  const changeEnglishDate = (value: string) => {
+    if (!value) {
+      setForm((current) => ({ ...current, ad: "" }));
+      setDateError("Choose a valid English date.");
+      return;
+    }
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+      setDateError("Choose a valid English date.");
+      setForm((current) => ({ ...current, ad: value }));
+      return;
+    }
+    try {
+      const bs = new NepaliDate(date).format("YYYY-MM-DD");
+      setForm((current) => ({ ...current, ad: value, bs }));
+      setDateError("");
+    } catch {
+      setForm((current) => ({ ...current, ad: value }));
+      setDateError("This English date is outside the supported Nepali calendar range.");
+    }
+  };
+
   const purchaseCents = parseMoneyCents(form.amount) ?? 0;
   const paidNowCents = partiallyPaid ? parseMoneyCents(form.paidNow) ?? 0 : 0;
   const remainingCents = Math.max(0, purchaseCents - paidNowCents);
@@ -1078,6 +1103,11 @@ function AddEntry({
 
     if (!form.partyId) {
       setError("Select a party from the suggestions.");
+      return;
+    }
+
+    if (dateError) {
+      setError(dateError);
       return;
     }
 
@@ -1235,13 +1265,25 @@ function AddEntry({
             )}
           </div>
 
-          <div className="form-field">
-            <span>Nepali date (BS) *</span>
-            <NepaliDatePicker
-              value={form.bs}
-              onChange={(bs, ad) => setForm({ ...form, bs, ad })}
-            />
-            <small>Select a date from the Nepali calendar.</small>
+          <div className="transaction-date-column">
+            <div className="form-field">
+              <span>Nepali date (BS) *</span>
+              <NepaliDatePicker
+                value={form.bs}
+                onChange={(bs, ad) => { setForm((current) => ({ ...current, bs, ad })); setDateError(""); }}
+              />
+              <small>Select a date from the Nepali calendar.</small>
+            </div>
+            <FormField label="English date (AD) *">
+              <input
+                type="date"
+                required
+                value={form.ad}
+                onChange={(event) => changeEnglishDate(event.target.value)}
+              />
+              <small>Changing either date updates the other automatically.</small>
+              {dateError && <small className="field-error" role="alert">{dateError}</small>}
+            </FormField>
           </div>
 
         </div>
