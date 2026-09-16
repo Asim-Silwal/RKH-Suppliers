@@ -75,6 +75,23 @@ const money = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
+function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+  const cell = (value: string | number) => {
+    if (typeof value === "number") return value.toFixed(2);
+    const safe = /^\s*[=+\-@]/.test(value) ? `'${value}` : value;
+    return `"${safe.replaceAll('"', '""')}"`;
+  };
+  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(cell).join(",")).join("\r\n")}\r\n`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
@@ -1276,42 +1293,20 @@ function Transactions({
           className="outline-button"
           disabled={shown.length === 0}
           onClick={() => {
-            const csvCell = (value: string | number) =>
-              `"${String(value).replaceAll('"', '""')}"`;
-            const csv = [
-              "date_bs,party,type,amount,description",
-              ...shown.map(
-                (entry) =>
-                  [entry.bs, partyName(
-                    parties,
-                    entry.partyId,
-                  ), entry.type, entry.amount, entry.description]
-                    .map(csvCell).join(","),
-              ),
-            ].join("\n");
-
-            const link =
-              document.createElement("a");
-
-            link.href =
-              URL.createObjectURL(
-                new Blob([csv], {
-                  type: "text/csv",
-                }),
-              );
-
-            link.download =
-              "rkh-ledger.csv";
-
-            link.click();
-
-            URL.revokeObjectURL(
-              link.href,
+            const purchases = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + entry.amount, 0);
+            const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + entry.amount, 0);
+            downloadCsv(
+              `rkh-statement-${todayDates().bs}.csv`,
+              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Purchase (NPR)", "Payment (NPR)"],
+              [
+                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
+                ["TOTAL", "", "", "", "", purchases, payments],
+              ],
             );
           }}
         >
           <Download size={15} />
-          Export results
+          Download CSV
         </button>
       </div>
 
@@ -1588,6 +1583,20 @@ function PartyDetail({
       0,
     );
 
+  const exportHistory = () => {
+    let balance = 0;
+    const history = [...rows].reverse().map((entry) => {
+      balance += entry.type === "PURCHASE" ? entry.amount : -entry.amount;
+      return [party.name, entry.bs, entry.ad, entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : "", balance];
+    });
+    const slug = party.name.trim().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || party.id;
+    downloadCsv(
+      `rkh-${slug}-statement-${todayDates().bs}.csv`,
+      ["Party", "Date (BS)", "Date (AD)", "Type", "Description", "Purchase (NPR)", "Payment (NPR)", "Balance (NPR)"],
+      [...history, ["TOTAL", "", "", "", "", purchased, paid, purchased - paid]],
+    );
+  };
+
   return (
     <div className="party-detail">
       <Header
@@ -1690,6 +1699,10 @@ function PartyDetail({
               Transaction history
             </h2>
           </div>
+          <button type="button" className="outline-button party-export-button" onClick={exportHistory} disabled={rows.length === 0}>
+            <Download size={15} />
+            Download CSV
+          </button>
         </div>
 
         <Table

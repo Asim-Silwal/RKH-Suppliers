@@ -60,6 +60,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .activity-chart small { color: #8b8b93; }
 .dashboard-columns { gap: 18px; }
 .panel-heading { padding: 23px 25px 18px; }
+.party-export-button { flex: 0 0 auto; }
 .ledger-head, .party-head { background: #f8f8f9; color: #888890; }
 .ledger-row, .party-row { border-color: #ededf0; color: #676770; }
 .ledger-row b, .ledger-row strong, .party-row b { color: #2c2c31; }
@@ -251,6 +252,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .activity-legend span { font-size: 11px; }
   .dashboard-columns { gap: 14px; }
   .panel-heading { align-items: flex-start; padding: 18px 17px 14px; }
+  .party-detail .panel-heading { flex-wrap: wrap; }
+  .party-detail .party-export-button { width: 100%; }
   .panel-heading h2 { font-size: 18px; }
   .text-link { font-size: 11px; }
   .ledger-table { overflow-x: visible; }
