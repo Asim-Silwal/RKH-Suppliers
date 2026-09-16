@@ -235,6 +235,9 @@ function Shell({
 
       <main className={`reference-main${active === "dashboard" ? " dashboard-main" : ""}`}>
         <div className="profile-toolbar" ref={menuRef}>
+          <button type="button" className="mobile-brand" onClick={() => go("dashboard")} aria-label="RKH Ledger dashboard">
+            <img src={ledgerMark} alt="" /><span>RKH Ledger</span>
+          </button>
           <button type="button" className="profile-trigger" aria-label="Open profile" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
             <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
           </button>
