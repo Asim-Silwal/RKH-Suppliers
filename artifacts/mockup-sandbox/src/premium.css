@@ -54,6 +54,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .activity-card { min-height: 220px; padding: 30px 36px; }
 .activity-copy h2, .panel-heading h2, .form-panel h2 { color: #242428; font-weight: 650; letter-spacing: -.035em; }
 .activity-copy p, .activity-legend span { color: #77777e; }
+.activity-legend em { color: #545c68; font-size: 11px; font-style: normal; font-weight: 600; }
 .activity-legend strong, .activity-chart strong { color: #242428; }
 .legend-purchase { background: #26272b; }
 .legend-payment { background: #afb0b7; }

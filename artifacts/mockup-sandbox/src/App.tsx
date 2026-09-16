@@ -550,6 +550,9 @@ function Dashboard({
   const collected = periodEntries
     .filter((entry) => entry.type === "PAYMENT")
     .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+  const totalActivityCents = toCents(purchased) + toCents(collected);
+  const purchaseShare = totalActivityCents ? Math.round(toCents(purchased) / totalActivityCents * 100) : 0;
+  const paymentShare = totalActivityCents ? 100 - purchaseShare : 0;
 
   const dueParties = parties
     .map((party) => ({ party, balance: balanceOf(entriesAsOfEnd, party.id) }))
@@ -635,12 +638,12 @@ function Dashboard({
           <h2>Business activity</h2>
           <p>{period === "lifetime" ? "Purchases and payments across your full ledger." : "Purchases and payments in the selected period."}</p>
           <div className="activity-legend">
-            <span><i className="legend-purchase" /> Purchases <strong>{money(purchased)}</strong></span>
-            <span><i className="legend-payment" /> Payments <strong>{money(collected)}</strong></span>
+            <span><i className="legend-purchase" /> Purchases <strong>{money(purchased)}</strong><em>{purchaseShare}%</em></span>
+            <span><i className="legend-payment" /> Payments received <strong>{money(collected)}</strong><em>{paymentShare}%</em></span>
           </div>
         </div>
-        <div className="activity-chart" style={{ background: purchased + collected ? `conic-gradient(#d6a04f 0 ${(purchased / (purchased + collected)) * 100}%, #3b9b87 0 100%)` : "#ebebef" }}>
-          <div><strong>{periodEntries.length}</strong><small>transactions</small></div>
+        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments in this period"} style={{ background: totalActivityCents ? `conic-gradient(#d6a04f 0 ${toCents(purchased) / totalActivityCents * 100}%, #3b9b87 0 100%)` : "#ebebef" }}>
+          <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "purchases" : "no activity"}</small></div>
         </div>
       </section>
 
