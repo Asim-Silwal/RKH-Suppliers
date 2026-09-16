@@ -64,6 +64,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .ledger-head, .party-head { background: #f8f8f9; color: #888890; }
 .ledger-row, .party-row { border-color: #ededf0; color: #676770; }
 .selectable-ledger-row { grid-template-columns: 24px 1.1fr 1.3fr .9fr 1.3fr 1.05fr; min-width: 720px; }
+.selectable-table .ledger-row:not(.ledger-head) > span:nth-child(3) { display: grid; gap: 4px; }
 .ledger-row.is-selected { background: #f1f5fc; }
 .transaction-select-checkbox { width: 16px; height: 16px; margin: 0; accent-color: #315d9d; cursor: pointer; }
 .selected-transaction-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #e7eaf0; background: #f8faff; padding: 12px 24px; color: #343944; font-size: 12px; }
