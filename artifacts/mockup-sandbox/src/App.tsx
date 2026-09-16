@@ -69,8 +69,17 @@ type Notice = {
   tone: "success" | "error";
 };
 
+const toCents = (value: number) => Math.round(value * 100);
+
+function parseMoneyCents(value: string) {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
+  if (!match) return null;
+  const cents = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+  return Number.isSafeInteger(cents) ? cents : null;
+}
+
 const money = (value: number) =>
-  `NPR ${value.toLocaleString("en-IN", {
+  `NPR ${(toCents(value) / 100).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -100,9 +109,9 @@ const balanceOf = (entries: Entry[], partyId: string) =>
     .filter((entry) => entry.partyId === partyId)
     .reduce(
       (sum, entry) =>
-        sum + (entry.type === "PURCHASE" ? entry.amount : -entry.amount),
+        sum + (entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount)),
       0,
-    );
+    ) / 100;
 
 const bsDate = (date: Date) => new NepaliDate(date).format("YYYY-MM-DD");
 
@@ -509,17 +518,17 @@ function Dashboard({
   );
   const purchased = periodEntries
     .filter((entry) => entry.type === "PURCHASE")
-    .reduce((sum, entry) => sum + entry.amount, 0);
+    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
 
   const collected = periodEntries
     .filter((entry) => entry.type === "PAYMENT")
-    .reduce((sum, entry) => sum + entry.amount, 0);
+    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
 
   const dueParties = parties
     .map((party) => ({ party, balance: balanceOf(entriesAsOfEnd, party.id) }))
     .filter(({ balance }) => balance > 0)
     .sort((a, b) => b.balance - a.balance);
-  const outstanding = dueParties.reduce((total, item) => total + item.balance, 0);
+  const outstanding = dueParties.reduce((total, item) => total + toCents(item.balance), 0) / 100;
   const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
 
   return (
@@ -1000,8 +1009,8 @@ function AddEntry({
 
   const [partiallyPaid, setPartiallyPaid] = useState(false);
 
-  const purchaseCents = Math.round(Number(form.amount || 0) * 100);
-  const paidNowCents = partiallyPaid ? Math.round(Number(form.paidNow || 0) * 100) : 0;
+  const purchaseCents = parseMoneyCents(form.amount) ?? 0;
+  const paidNowCents = partiallyPaid ? parseMoneyCents(form.paidNow) ?? 0 : 0;
   const remainingCents = Math.max(0, purchaseCents - paidNowCents);
   const invalidPaidNow = form.type === "PURCHASE" && partiallyPaid && (paidNowCents <= 0 || paidNowCents >= purchaseCents);
 
@@ -1012,10 +1021,11 @@ function AddEntry({
 
     if (
       !form.partyId ||
-      !form.amount ||
+      purchaseCents <= 0 ||
       !form.bs ||
       !form.ad
     ) {
+      setError("Enter a valid amount with no more than two decimal places.");
       return;
     }
 
@@ -1030,7 +1040,7 @@ function AddEntry({
     const success = await save({
       partyId: form.partyId,
       type: form.type,
-      amount: Number(form.amount),
+      amount: purchaseCents / 100,
       paidNow: form.type === "PURCHASE" && partiallyPaid ? paidNowCents / 100 : 0,
       ad: form.ad,
       bs: form.bs,
@@ -1121,9 +1131,9 @@ function AddEntry({
             <FormField label={form.type === "PURCHASE" ? "Purchase total (NPR) *" : "Payment amount (NPR) *"}>
               <input
                 required
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]+(\.[0-9]{1,2})?"
                 value={form.amount}
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}
                 placeholder="0.00"
@@ -1147,10 +1157,9 @@ function AddEntry({
                   <FormField label="Payment received now (NPR) *">
                     <input
                       required
-                      type="number"
-                      min="0.01"
-                      max={form.amount || undefined}
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9]+(\.[0-9]{1,2})?"
                       value={form.paidNow}
                       onChange={(event) => setForm({ ...form, paidNow: event.target.value })}
                       placeholder="0.00"
@@ -1309,8 +1318,8 @@ function Transactions({
           className="outline-button"
           disabled={shown.length === 0}
           onClick={() => {
-            const purchases = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + entry.amount, 0);
-            const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + entry.amount, 0);
+            const purchases = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+            const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
             downloadCsv(
               `rkh-statement-${todayDates().bs}.csv`,
               ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Purchase (NPR)", "Payment (NPR)"],
@@ -1614,9 +1623,9 @@ function PartyDetail({
     )
     .reduce(
       (sum, entry) =>
-        sum + entry.amount,
+        sum + toCents(entry.amount),
       0,
-    );
+    ) / 100;
 
   const paid = rows
     .filter(
@@ -1625,15 +1634,15 @@ function PartyDetail({
     )
     .reduce(
       (sum, entry) =>
-        sum + entry.amount,
+        sum + toCents(entry.amount),
       0,
-    );
+    ) / 100;
 
   const exportHistory = () => {
-    let balance = 0;
+    let balanceCents = 0;
     const history = [...rows].reverse().map((entry) => {
-      balance += entry.type === "PURCHASE" ? entry.amount : -entry.amount;
-      return [party.name, entry.bs, entry.ad, entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : "", balance];
+      balanceCents += entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount);
+      return [party.name, entry.bs, entry.ad, entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : "", balanceCents / 100];
     });
     const slug = party.name.trim().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || party.id;
     downloadCsv(
@@ -2324,22 +2333,24 @@ export default function App() {
   const addEntry = async (
     entry: Omit<Entry, "id"> & { paidNow?: number },
   ): Promise<boolean> => {
-    const paidNow = Math.round((entry.paidNow ?? 0) * 100) / 100;
-    if (entry.type === "PURCHASE" && (paidNow < 0 || paidNow > entry.amount)) {
+    const amountCents = toCents(entry.amount);
+    const paidNowCents = toCents(entry.paidNow ?? 0);
+    const paidNow = paidNowCents / 100;
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || !Number.isSafeInteger(paidNowCents) || (entry.type === "PURCHASE" && (paidNowCents < 0 || paidNowCents > amountCents))) {
       return false;
     }
 
     const transactionRows: Array<{
       party_id: string;
       type: EntryType;
-      amount: number;
+      amount: string;
       date_ad: string;
       date_bs: string;
       description: string | null;
     }> = [{
       party_id: entry.partyId,
       type: entry.type,
-      amount: entry.amount,
+      amount: (amountCents / 100).toFixed(2),
       date_ad: entry.ad,
       date_bs: entry.bs,
       description: entry.description.trim() || null,
@@ -2349,7 +2360,7 @@ export default function App() {
       transactionRows.push({
         party_id: entry.partyId,
         type: "PAYMENT",
-        amount: paidNow,
+        amount: paidNow.toFixed(2),
         date_ad: entry.ad,
         date_bs: entry.bs,
         description: "Payment received with purchase",
@@ -2382,6 +2393,13 @@ export default function App() {
       ...saved,
       ...items,
     ]);
+
+    const expectedAmounts = transactionRows.map((row) => `${row.type}:${row.amount}`).sort().join("|");
+    const savedAmounts = saved.map((row) => `${row.type}:${row.amount.toFixed(2)}`).sort().join("|");
+    if (expectedAmounts !== savedAmounts) {
+      showNotice("Saved amount differs", "The database returned a different amount. Please review this transaction.", "error");
+      return true;
+    }
 
     const name = partyName(parties, entry.partyId);
     if (entry.type === "PURCHASE" && paidNow > 0) {
