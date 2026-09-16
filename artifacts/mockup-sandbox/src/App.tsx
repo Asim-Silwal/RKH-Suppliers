@@ -642,7 +642,7 @@ function Dashboard({
             <span><i className="legend-payment" /> Payments received <strong>{money(collected)}</strong><em>{paymentShare}%</em></span>
           </div>
         </div>
-        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments in this period"} style={{ background: totalActivityCents ? `conic-gradient(#d6a04f 0 ${toCents(purchased) / totalActivityCents * 100}%, #3b9b87 0 100%)` : "#ebebef" }}>
+        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments in this period"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(purchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
           <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "purchases" : "no activity"}</small></div>
         </div>
       </section>

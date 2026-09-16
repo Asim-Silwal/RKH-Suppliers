@@ -51,7 +51,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .summary-grid span { color: #71717a; font-size: 12px; font-weight: 550; }
 .summary-grid strong { color: #1d1d1f; font-size: clamp(21px, 1.8vw, 29px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
 .summary-grid small { color: #92929a; }
-.activity-card { min-height: 220px; padding: 30px 36px; }
+.activity-card { --chart-purchase: #315f9f; --chart-payment: #8ab3df; min-height: 220px; padding: 30px 36px; }
 .activity-copy h2, .panel-heading h2, .form-panel h2 { color: #242428; font-weight: 650; letter-spacing: -.035em; }
 .activity-copy p, .activity-legend span { color: #77777e; }
 .activity-legend em { color: #545c68; font-size: 11px; font-style: normal; font-weight: 600; }
@@ -225,8 +225,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .summary-grid > div:nth-child(2) { border-top: 3px solid #55a99a; }
 .summary-grid > div:nth-child(3) { border-top: 3px solid #dfbd71; }
 .summary-grid > div:nth-child(4) { border-top: 3px solid #7b9ed1; }
-.legend-purchase { background: #d6a04f; }
-.legend-payment { background: #3b9b87; }
+.legend-purchase { background: var(--chart-purchase); }
+.legend-payment { background: var(--chart-payment); }
 .type.purchase { border-color: #f1dfbd; background: #fff8e9; color: #896025; }
 .type.payment { border-color: #cce7dc; background: #eaf8f2; color: #227765; }
 .balance-due, .outstanding-row b { color: #a76449; }
