@@ -104,6 +104,22 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
+const partySlug = (name: string) =>
+  name.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+
+const partySegment = (party: Party, parties: Party[]) => {
+  const slug = partySlug(party.name) || party.id;
+  const duplicate = parties.some((item) => item.id !== party.id && partySlug(item.name) === slug);
+  return duplicate ? `${slug}--${party.id}` : slug;
+};
+
+const partyPath = (party: Party, parties: Party[]) =>
+  `parties/${encodeURIComponent(partySegment(party, parties))}`;
+
+const findPartyByRoute = (parties: Party[], segment: string) =>
+  parties.find((party) => party.id === segment) ??
+  parties.find((party) => partySegment(party, parties) === segment);
+
 const matchingParties = (parties: Party[], query: string) =>
   parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -155,7 +171,7 @@ function currentRoute() {
 
   return {
     path: parts[0] || "dashboard",
-    id: parts[1],
+    id: parts[1] ? decodeURIComponent(parts[1]) : undefined,
   };
 }
 
@@ -679,7 +695,7 @@ function Dashboard({
                 className="outstanding-row"
                 key={party.id}
                 onClick={() =>
-                  go(`parties/${party.id}`)
+                  go(partyPath(party, parties))
                 }
               >
                 <span>
@@ -754,11 +770,11 @@ function Parties({
               if (!showSuggestions || matches.length === 0) return;
               if (event.key === "ArrowDown") { event.preventDefault(); setActiveSuggestion((index) => (index + 1) % matches.length); }
               if (event.key === "ArrowUp") { event.preventDefault(); setActiveSuggestion((index) => (index - 1 + matches.length) % matches.length); }
-              if (event.key === "Enter") { event.preventDefault(); const match = matches[activeSuggestion]; if (match) go(`parties/${match.id}`); }
+              if (event.key === "Enter") { event.preventDefault(); const match = matches[activeSuggestion]; if (match) go(partyPath(match, parties)); }
             }}
           />
           {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
-          {showSuggestions && <PartySuggestions id="directory-party-suggestions" parties={matches} active={activeSuggestion} onSelect={(party) => go(`parties/${party.id}`)} emptyMessage="No matching parties." />}
+          {showSuggestions && <PartySuggestions id="directory-party-suggestions" parties={matches} active={activeSuggestion} onSelect={(party) => go(partyPath(party, parties))} emptyMessage="No matching parties." />}
         </div>
       </div>
 
@@ -782,7 +798,7 @@ function Parties({
               className="party-row party-button"
               key={party.id}
               onClick={() =>
-                go(`parties/${party.id}`)
+                go(partyPath(party, parties))
               }
             >
               <span>
@@ -1443,9 +1459,11 @@ function Transactions({
 
 function EditParty({
   party,
+  parties,
   save,
 }: {
   party: Party;
+  parties: Party[];
   save: (
     party: Party,
   ) => Promise<boolean>;
@@ -1477,7 +1495,7 @@ function EditParty({
     setSaving(false);
 
     if (success) {
-      go(`parties/${party.id}`);
+      go(partyPath(form, parties.map((item) => item.id === form.id ? form : item)));
     } else {
       setError(
         "Could not update party.",
@@ -1492,7 +1510,7 @@ function EditParty({
         title="Edit party"
         description="Update this party's account and contact details."
         action={() =>
-          go(`parties/${party.id}`)
+          go(partyPath(party, parties))
         }
         label="Back to party"
       />
@@ -1584,7 +1602,7 @@ function EditParty({
             type="button"
             className="outline-button"
             onClick={() =>
-              go(`parties/${party.id}`)
+              go(partyPath(party, parties))
             }
           >
             Cancel
@@ -2030,6 +2048,15 @@ export default function App() {
         listen,
       );
   }, []);
+
+  useEffect(() => {
+    if (current.path !== "parties" || !current.id || role === "staff") return;
+    const party = parties.find((item) => item.id === current.id);
+    if (!party) return;
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    window.history.replaceState({}, "", `${base}/${partyPath(party, parties)}`);
+    setCurrent(currentRoute());
+  }, [current.path, current.id, parties, role]);
 
   /* AUTH */
 
@@ -2606,10 +2633,7 @@ export default function App() {
     current.path === "parties" &&
     current.id
   ) {
-    const party = parties.find(
-      (item) =>
-        item.id === current.id,
-    );
+    const party = findPartyByRoute(parties, current.id);
 
     if (party) {
       page = (
@@ -2641,6 +2665,7 @@ export default function App() {
       page = (
         <EditParty
           party={party}
+          parties={parties}
           save={updateParty}
         />
       );
