@@ -1848,7 +1848,7 @@ export default function App() {
   ) => {
     if (
       !window.confirm(
-        `Delete ${party.name}? A party with transactions cannot be deleted until its transactions are removed.`,
+        `Delete ${party.name}? This will permanently delete the party and ALL of its transaction history. This cannot be undone.`,
       )
     ) {
       return;
