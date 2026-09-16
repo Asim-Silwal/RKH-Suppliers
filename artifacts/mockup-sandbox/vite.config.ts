@@ -13,7 +13,7 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH ?? "/__mockup";
+const basePath = process.env.BASE_PATH ?? (process.env.VERCEL ? "/" : "/__mockup");
 
 export default defineConfig({
   base: basePath,
