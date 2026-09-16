@@ -449,14 +449,19 @@ function Table({
   entries,
   parties,
   emptyMessage = "No transactions recorded yet.",
+  selectedId,
+  onSelect,
 }: {
   entries: Entry[];
   parties: Party[];
   emptyMessage?: string;
+  selectedId?: string | null;
+  onSelect?: (entry: Entry) => void;
 }) {
   return (
-    <div className="ledger-table">
-      <div className="ledger-row ledger-head">
+    <div className={`ledger-table${onSelect ? " selectable-table" : ""}`}>
+      <div className={`ledger-row ledger-head${onSelect ? " selectable-ledger-row" : ""}`}>
+        {onSelect && <span>SELECT</span>}
         <span>DATE (AD / BS)</span>
         <span>PARTY</span>
         <span>TYPE</span>
@@ -465,7 +470,8 @@ function Table({
       </div>
 
       {entries.map((entry) => (
-        <div className="ledger-row" key={entry.id}>
+        <div className={`ledger-row${onSelect ? " selectable-ledger-row" : ""}${selectedId === entry.id ? " is-selected" : ""}`} key={entry.id}>
+          {onSelect && <button type="button" className="transaction-select-button" aria-pressed={selectedId === entry.id} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onClick={() => onSelect(entry)}>{selectedId === entry.id ? "Selected" : "Select"}</button>}
           <span>
             <b>{entry.ad}</b>
             <small>{entry.bs} BS</small>
@@ -1607,16 +1613,29 @@ function PartyDetail({
   entries,
   edit,
   remove,
+  deleteTransaction,
 }: {
   party: Party;
   entries: Entry[];
   edit: () => void;
   remove: () => void;
+  deleteTransaction: (entry: Entry) => Promise<boolean>;
 }) {
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState(false);
   const rows = entries.filter(
     (entry) =>
       entry.partyId === party.id,
   );
+  const selectedTransaction = rows.find((entry) => entry.id === selectedTransactionId);
+
+  const removeSelectedTransaction = async () => {
+    if (!selectedTransaction || !window.confirm(`Delete this ${selectedTransaction.type.toLowerCase()} of ${money(selectedTransaction.amount)} on ${selectedTransaction.bs} BS? This cannot be undone.`)) return;
+    setDeletingTransaction(true);
+    const deleted = await deleteTransaction(selectedTransaction);
+    setDeletingTransaction(false);
+    if (deleted) setSelectedTransactionId(null);
+  };
 
   const purchased = rows
     .filter(
@@ -1762,10 +1781,22 @@ function PartyDetail({
           </button>
         </div>
 
+        {selectedTransaction && (
+          <div className="selected-transaction-bar">
+            <span>Selected {selectedTransaction.type.toLowerCase()} · {money(selectedTransaction.amount)} · {selectedTransaction.bs} BS</span>
+            <button type="button" className="delete-button" disabled={deletingTransaction} onClick={removeSelectedTransaction}>
+              <Trash2 size={14} aria-hidden="true" />
+              {deletingTransaction ? "Deleting..." : "Delete transaction"}
+            </button>
+          </div>
+        )}
+
         <Table
           entries={rows}
           parties={[party]}
           emptyMessage="No transactions for this party yet."
+          selectedId={selectedTransactionId}
+          onSelect={(entry) => setSelectedTransactionId((current) => current === entry.id ? null : entry.id)}
         />
       </section>
     </div>
@@ -2330,6 +2361,24 @@ export default function App() {
     go("parties");
   };
 
+  const deleteTransaction = async (entry: Entry): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", entry.id)
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      showNotice("Could not delete transaction", error?.message ?? "Transaction was not removed.", "error");
+      return false;
+    }
+
+    setEntries((items) => items.filter((item) => item.id !== entry.id));
+    showNotice("Transaction deleted", `${entry.type === "PURCHASE" ? "Purchase" : "Payment"} of ${money(entry.amount)} was removed.`);
+    return true;
+  };
+
   /* ADD TRANSACTION */
 
   const addEntry = async (
@@ -2555,6 +2604,7 @@ export default function App() {
           remove={() =>
             deleteParty(party)
           }
+          deleteTransaction={deleteTransaction}
         />
       );
     }
