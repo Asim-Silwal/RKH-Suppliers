@@ -1047,6 +1047,24 @@ function AddEntry({
     useState("");
 
   const [partiallyPaid, setPartiallyPaid] = useState(false);
+  const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
+  const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
+  const [activePartySuggestion, setActivePartySuggestion] = useState(0);
+  const partyMatches = [...(partyQuery.trim() ? matchingParties(parties, partyQuery) : parties)]
+    .sort((a, b) => {
+      const query = partyQuery.trim().toLowerCase();
+      const rank = (party: Party) => party.name.toLowerCase().startsWith(query) ? 0 : party.name.toLowerCase().includes(query) ? 1 : 2;
+      return rank(a) - rank(b) || a.name.localeCompare(b.name);
+    })
+    .slice(0, 6);
+  const showPartySuggestions = partySuggestionsOpen && !(form.partyId && partyQuery === parties.find((party) => party.id === form.partyId)?.name);
+  const chooseParty = (party: Party) => {
+    setForm((current) => ({ ...current, partyId: party.id }));
+    setPartyQuery(party.name);
+    setPartySuggestionsOpen(false);
+    setActivePartySuggestion(0);
+    setError("");
+  };
 
   const purchaseCents = parseMoneyCents(form.amount) ?? 0;
   const paidNowCents = partiallyPaid ? parseMoneyCents(form.paidNow) ?? 0 : 0;
@@ -1058,8 +1076,12 @@ function AddEntry({
   ) => {
     event.preventDefault();
 
+    if (!form.partyId) {
+      setError("Select a party from the suggestions.");
+      return;
+    }
+
     if (
-      !form.partyId ||
       purchaseCents <= 0 ||
       !form.bs ||
       !form.ad
@@ -1121,32 +1143,34 @@ function AddEntry({
         )}
 
         <div className="form-grid transaction-form-grid">
-          <FormField label="Party *">
-            <select
-              required
-              value={form.partyId}
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  partyId:
-                    event.target.value,
-                })
-              }
-            >
-              <option value="">
-                Select a party
-              </option>
-
-              {parties.map((party) => (
-                <option
-                  key={party.id}
-                  value={party.id}
-                >
-                  {party.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <div className="form-field">
+            <label htmlFor="entry-party-search">Party *</label>
+            <div className="entry-party-search" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPartySuggestionsOpen(false); }}>
+              <input
+                id="entry-party-search"
+                role="combobox"
+                aria-required="true"
+                aria-autocomplete="list"
+                aria-expanded={showPartySuggestions}
+                aria-controls="entry-party-suggestions"
+                aria-activedescendant={showPartySuggestions && partyMatches.length ? `entry-party-suggestions-${activePartySuggestion}` : undefined}
+                autoComplete="off"
+                placeholder="Type a party name, company, or phone"
+                value={partyQuery}
+                onFocus={() => setPartySuggestionsOpen(true)}
+                onChange={(event) => { setPartyQuery(event.target.value); setForm((current) => ({ ...current, partyId: "" })); setActivePartySuggestion(0); setPartySuggestionsOpen(true); }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") { setPartySuggestionsOpen(false); return; }
+                  if (!showPartySuggestions || !partyMatches.length) return;
+                  if (event.key === "ArrowDown") { event.preventDefault(); setActivePartySuggestion((index) => (index + 1) % partyMatches.length); }
+                  if (event.key === "ArrowUp") { event.preventDefault(); setActivePartySuggestion((index) => (index - 1 + partyMatches.length) % partyMatches.length); }
+                  if (event.key === "Enter") { event.preventDefault(); chooseParty(partyMatches[activePartySuggestion]); }
+                }}
+              />
+              {partyQuery && <button type="button" className="party-search-clear" aria-label="Clear selected party" onClick={() => { setPartyQuery(""); setForm((current) => ({ ...current, partyId: "" })); setActivePartySuggestion(0); setPartySuggestionsOpen(true); document.getElementById("entry-party-search")?.focus(); }}><X size={15} /></button>}
+              {showPartySuggestions && <PartySuggestions id="entry-party-suggestions" parties={partyMatches} active={activePartySuggestion} onSelect={chooseParty} emptyMessage="No matching parties. Try a different name or phone number." />}
+            </div>
+          </div>
 
           <FormField label="Transaction type *">
             <select

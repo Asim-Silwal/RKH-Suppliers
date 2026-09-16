@@ -112,6 +112,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .party-suggestions button strong { overflow: hidden; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .party-suggestions button small, .party-suggestions p { color: #7b8593; font-size: 11px; }
 .party-suggestions p { margin: 0; padding: 12px; }
+.entry-party-search { position: relative; display: flex; align-items: center; min-width: 0; }
+.form-panel .entry-party-search input { padding-right: 40px; }
+.entry-party-search .party-search-clear { position: absolute; right: 9px; }
+.entry-party-search .party-suggestions { top: calc(100% + 6px); left: 0; width: 100%; }
 .form-panel { max-width: 880px; padding: 32px; }
 .form-panel > label, .form-grid label, .form-grid .form-field { color: #515159; }
 .form-panel input, .form-panel select, .form-panel textarea, .bs-date-trigger { border-color: #d9d9de; border-radius: 10px; color: #242428; }
