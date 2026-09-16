@@ -421,6 +421,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .type.payment { color: #08704a; border-color: #cae5d4; background: #eaf7ef; }
 .balance-due { color: #a74d3e; }
 .outstanding-row { padding: 19px 24px; border-color: #e7eee5; }.outstanding-row:hover, .party-button:hover { background: #f3f8f0; }
+.outstanding-row.static:hover { background: #fff; }
 .outstanding-row strong { color: #244c34; font-size: 13px; }.outstanding-row small { font-size: 11px; }.outstanding-row b { color: #a74d3e; font-size: 15px; white-space: nowrap; }
 .filter-bar { min-height: 52px; border-color: #dce9dd; border-radius: 10px; padding: 10px 16px; color: #799b85; }
 .filter-bar input { font-size: 13px; }.filter-bar select, .transaction-filters input { border-radius: 7px; padding: 10px; font-size: 12px; }
@@ -516,6 +517,27 @@ button:disabled { cursor: not-allowed; opacity: .55; transform: none; }
 @media (max-width: 600px) { .dashboard-filter { margin-top: 0; }.period-tabs { width: 100%; }.period-tabs button { flex: 1; padding: 7px 4px; }.period-range { margin-left: 0; }.custom-range > div { flex: 1 1 140px; } }
 @media (max-width: 600px) { .party-header-info > div { flex: 1 1 100%; }.party-toolbar { flex-direction: column; align-items: stretch; }.party-back-button { align-self: flex-start; }.party-toolbar .party-actions { justify-content: flex-start; flex-wrap: wrap; } }
 @media (max-width: 600px) { .period-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.reference-brand .brand-mark { display: block; grid-row: span 2; width: 44px; height: 44px; border-radius: 11px; }
+.login-logo.brand-mark { display: block; width: 58px; height: 58px; border: 0; border-radius: 13px; background: transparent; }
+@media (max-width: 600px) { .reference-brand .brand-mark { width: 38px; height: 38px; } }
+.profile-toolbar { position: relative; display: flex; justify-content: flex-end; margin: -28px 0 18px; z-index: 30; }
+.profile-trigger { width: 40px; height: 40px; padding: 0; border: 1px solid #c9c9c9; border-radius: 50%; background: #fff; cursor: pointer; }
+.profile-trigger:hover, .profile-trigger:focus-visible { border-color: #303030; outline-offset: 3px; }
+.profile-avatar { display: inline-grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; overflow: hidden; border-radius: 50%; background: #ececec; color: #303030; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.profile-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar.large { width: 62px; height: 62px; flex-basis: 62px; font-size: 19px; }
+.profile-menu { position: absolute; top: 48px; right: 0; width: min(300px, calc(100vw - 32px)); padding: 10px; border: 1px solid #d8d8d8; border-radius: 10px; background: #fff; color: #222; box-shadow: 0 14px 35px rgba(0,0,0,.11); }
+.profile-menu-person { display: flex; gap: 11px; align-items: center; padding: 8px 7px 12px; border-bottom: 1px solid #e7e7e7; }
+.profile-menu-person div { min-width: 0; }.profile-menu-person strong, .profile-menu-person small { display: block; overflow-wrap: anywhere; }.profile-menu-person strong { font-size: 13px; }.profile-menu-person small { margin-top: 3px; color: #666; font-size: 11px; }
+.profile-menu dl { margin: 8px 7px; }.profile-menu dl div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 11px; }.profile-menu dt { color: #777; }.profile-menu dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.profile-menu > button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 8px; border: 0; border-radius: 6px; background: #fff; color: #222; text-align: left; font-size: 12px; cursor: pointer; }.profile-menu > button:hover { background: #f1f1f1; }
+.profile-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow-y: auto; padding: 20px; background: rgba(0,0,0,.45); }
+.profile-modal { width: min(440px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 24px; border: 1px solid #ddd; border-radius: 12px; background: #fff; color: #222; box-shadow: 0 20px 60px rgba(0,0,0,.18); }
+.profile-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }.profile-modal-head h2 { margin: 7px 0 20px; font-size: 23px; }.profile-modal-head > button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: #555; cursor: pointer; }.profile-modal-head > button:hover { background: #eee; }
+.profile-modal form { display: grid; gap: 15px; }.profile-modal form > label, .profile-photo-field label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }.profile-modal input:not([type="file"]) { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #ccc; border-radius: 6px; background: #fff; color: #222; font: inherit; }.profile-modal input[readonly] { background: #f5f5f5; color: #666; }.profile-modal input:focus-visible { outline: 2px solid #555; outline-offset: 1px; }
+.profile-photo-field { display: flex; align-items: center; gap: 16px; }.profile-photo-field label { min-width: 0; flex: 1; }.profile-photo-field input { width: 100%; font-size: 11px; }.profile-photo-field small { color: #777; font-size: 10px; font-weight: 400; }
+.profile-role-note { margin: 0; color: #555; font-size: 12px; }.profile-form-error { margin: 0; color: #8d2424; font-size: 12px; }.profile-modal-actions { display: flex; justify-content: flex-end; gap: 9px; padding-top: 5px; }.profile-modal .black-button { background: #222; border-color: #222; }.profile-modal .black-button:hover { background: #444; }
+@media (max-width: 600px) { .profile-toolbar { margin: 0 0 15px; }.profile-menu { right: 0; }.profile-modal-backdrop { align-items: start; padding: 12px; }.profile-modal { max-height: calc(100vh - 24px); padding: 20px; } }
 @media (max-width: 600px) { .payment-preview { grid-template-columns: 1fr; } .payment-preview > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; } .payment-preview strong { font-size: 14px; text-align: right; } }
 @media (prefers-reduced-motion: reduce) { .action-notice, .notice-icon, .action-notice::after { animation: none; } }
 @media (max-width: 1100px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dashboard-columns { grid-template-columns: 1fr; } }

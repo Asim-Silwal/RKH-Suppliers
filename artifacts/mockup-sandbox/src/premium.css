@@ -1,0 +1,168 @@
+/* A quiet, neutral finish for the ledger UI. Loaded after index.css. */
+:root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; color: #242428; background: #f5f5f7; }
+body, .reference-app { background: #f5f5f7; }
+button, input, select, textarea { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #6e6e73; outline-offset: 2px; }
+
+.reference-sidebar { width: 246px; flex-basis: 246px; background: #ededf0; color: #242428; border-right: 1px solid #dedee2; box-shadow: none; }
+.reference-brand { margin-bottom: 12px; padding-bottom: 30px; color: #242428; }
+.reference-brand strong { color: #1d1d1f; font-size: 17px; font-weight: 700; letter-spacing: -.035em; }
+.reference-brand small { color: #77777e; font-size: 9px; }
+.reference-sidebar nav label, .reference-sidebar footer span { color: #85858c; }
+.reference-sidebar nav button { color: #5b5b63; font-weight: 500; }
+.reference-sidebar nav button:hover { background: #e2e2e6; color: #1d1d1f; }
+.reference-sidebar nav button.nav-active { border: 0 !important; box-shadow: 0 2px 7px rgba(24,24,27,.06); background: #fff; color: #1d1d1f; font-weight: 650; }
+.reference-sidebar footer { border-color: #d9d9de; }
+.reference-sidebar footer small { color: #77777e; }
+.reference-sidebar footer .outline-button { border-color: #d1d1d6; background: #f7f7f8; color: #3a3a40; }
+.reference-sidebar footer .outline-button:hover { background: #fff; }
+.reference-main { width: min(100%, 1460px); padding-top: 48px; }
+.profile-toolbar { margin-top: -23px; margin-bottom: 22px; }
+.profile-trigger { background: #fff; border-color: #dedee2; box-shadow: 0 2px 8px rgba(24,24,27,.05); }
+.profile-trigger:hover { border-color: #9a9aa2; }
+
+.eyebrow { color: #85858c; font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.reference-header { margin-bottom: 30px; }
+.reference-header h1 { color: #1d1d1f; font-size: clamp(35px, 3vw, 46px); font-weight: 700; letter-spacing: -.055em; }
+.reference-header p { color: #71717a; font-size: 14px; }
+.black-button, .outline-button, .delete-button, .party-back-button { min-height: 42px; border-radius: 10px; font-size: 12px; font-weight: 650; }
+.black-button, .login-button { background: #242428; border-color: #242428; color: #fff; box-shadow: 0 4px 11px rgba(24,24,27,.11); }
+.black-button:hover, .login-button:hover:not(:disabled) { background: #424248; border-color: #424248; transform: none; }
+.outline-button, .delete-button, .party-back-button { border-color: #d9d9de; background: #fff; color: #3a3a40; box-shadow: none; }
+.outline-button:hover, .delete-button:hover, .party-back-button:hover { border-color: #bfc0c6; background: #f7f7f8; color: #242428; transform: none; }
+.text-link, .back-link { color: #4c4c54; }
+.text-link:hover, .back-link:hover { color: #1d1d1f; }
+
+.dashboard-filter, .summary-grid > div, .activity-card, .reference-panel, .form-panel, .party-info div, .party-header-info > div, .party-notes { border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
+.dashboard-filter { margin-bottom: 20px; padding: 11px 14px; }
+.period-tabs { background: #f1f1f3; border-radius: 10px; }
+.period-tabs button { color: #686870; border-radius: 8px; }
+.period-tabs button:hover { color: #242428; }
+.period-tabs button.active { background: #fff; color: #1d1d1f; box-shadow: 0 1px 5px rgba(28,28,32,.11); }
+.period-range, .custom-range > div { color: #77777e; }
+.summary-grid { gap: 14px; }
+.summary-grid > div, .summary-grid > div:first-child, .summary-grid > div:nth-child(2), .summary-grid > div:nth-child(3), .summary-grid > div:nth-child(4) { min-height: 150px; padding: 22px; border-top: 1px solid #e3e3e8; background: #fff; }
+.summary-grid span { color: #71717a; font-size: 12px; font-weight: 550; }
+.summary-grid strong { color: #1d1d1f; font-size: clamp(21px, 1.8vw, 29px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
+.summary-grid small { color: #92929a; }
+.activity-card { min-height: 220px; padding: 30px 36px; }
+.activity-copy h2, .panel-heading h2, .form-panel h2 { color: #242428; font-weight: 650; letter-spacing: -.035em; }
+.activity-copy p, .activity-legend span { color: #77777e; }
+.activity-legend strong, .activity-chart strong { color: #242428; }
+.legend-purchase { background: #26272b; }
+.legend-payment { background: #afb0b7; }
+.activity-chart small { color: #8b8b93; }
+.dashboard-columns { gap: 18px; }
+.panel-heading { padding: 23px 25px 18px; }
+.ledger-head, .party-head { background: #f8f8f9; color: #888890; }
+.ledger-row, .party-row { border-color: #ededf0; color: #676770; }
+.ledger-row b, .ledger-row strong, .party-row b { color: #2c2c31; }
+.ledger-row small, .party-row small { color: #909098; }
+.type.purchase, .type.payment { border-color: #e3e3e8; background: #f6f6f8; color: #4f4f56; }
+.type.payment { background: #ededf0; color: #34343b; }
+.outstanding-row { border-color: #ededf0; }
+.outstanding-row:hover, .party-button:hover { background: #f8f8fa; }
+.outstanding-row.static:hover { background: #fff; }
+.outstanding-row strong, .outstanding-row b { color: #34343b; }
+.balance-due { color: #55555e; }
+.balance-clear { color: #77777e; }
+.empty-state { border-color: #ededf0; color: #85858c; }
+
+.filter-bar { border-color: #e1e1e6; border-radius: 12px; color: #8c8c94; box-shadow: 0 2px 10px rgba(28,28,32,.025); }
+.filter-bar input, .filter-bar select, .transaction-filters input { color: #242428; }
+.filter-bar select, .transaction-filters input { border-color: #dedee3; }
+.form-panel { max-width: 880px; padding: 32px; }
+.form-panel > label, .form-grid label, .form-grid .form-field { color: #515159; }
+.form-panel input, .form-panel select, .form-panel textarea, .bs-date-trigger { border-color: #d9d9de; border-radius: 10px; color: #242428; }
+.form-panel input:focus, .form-panel select:focus, .form-panel textarea:focus, .bs-date-trigger:hover { border-color: #8f8f98; }
+.form-panel small, .form-field small { color: #888890; }
+.form-grid .partial-toggle, .form-grid .partial-toggle:has(input:checked) { border-color: #dedee3; background: #f7f7f8; color: #333339; }
+.form-grid .partial-toggle input { accent-color: #34343b; }
+.form-field input[readonly] { background: #f7f7f8; color: #6d6d75; }
+.payment-preview { border-color: #e4e4e8; background: #e4e4e8; }
+.payment-preview > div, .payment-preview > div:last-child { background: #f8f8f9; }
+.payment-preview span { color: #77777e; }
+.payment-preview strong, .payment-preview > div:last-child strong { color: #242428; }
+.party-info span, .party-header-info small, .party-notes span { color: #888890; }
+.party-info b, .party-header-info strong, .party-notes p, .party-header-info svg { color: #34343b; }
+.party-back-button { color: #34343b; }
+.form-notice { border-color: #dedee3; background: #f7f7f8; color: #34343b; }
+
+.bs-date-trigger svg, .bs-calendar-heading > button, .bs-calendar-footer button { color: #45454c; }
+.bs-calendar { border-color: #e1e1e5; box-shadow: 0 16px 40px rgba(28,28,32,.12); }
+.bs-calendar-heading > button:hover:not(:disabled), .bs-calendar-grid button:hover { background: #f1f1f3; }
+.bs-calendar-selects select { background: #f1f1f3; color: #34343b; }
+.bs-calendar-weekday, .bs-calendar-footer { color: #8a8a92; }
+.bs-calendar-grid button { color: #34343b; }
+.bs-calendar-grid button.selected { background: #34343b; color: #fff; }
+
+.login-page { background: #f1f1f3; }
+.login-shell { border: 1px solid #e2e2e6; border-radius: 20px; box-shadow: 0 24px 70px rgba(28,28,32,.09); }
+.login-brand { background: #242428; }
+.login-brand .login-kicker, .login-brand-footer { color: #b8b8bf; }
+.login-intro { color: #d2d2d8; }
+.login-heading h2 { color: #1d1d1f; }
+.login-fields input { border-color: #d9d9de; }
+.login-fields input:focus { border-color: #8f8f98; box-shadow: 0 0 0 3px rgba(115,115,125,.12); }
+.login-security { color: #8b8b93; }
+.profile-menu, .profile-modal { border-color: #e1e1e5; box-shadow: 0 18px 45px rgba(28,28,32,.13); }
+.profile-avatar { background: #ebebee; color: #34343b; }
+.notice-copy strong { color: #242428; }
+.notice-copy small { color: #77777e; }
+.action-notice { border-color: #dedee3; box-shadow: 0 16px 40px rgba(28,28,32,.12); }
+.action-notice::after { background: #34343b; }
+.notice-icon { background: #f1f1f3; color: #34343b; }
+.action-notice > button { color: #77777e; }
+.action-notice > button:hover { background: #f1f1f3; color: #34343b; }
+
+@media (max-width: 850px) { .reference-sidebar { width: 210px; flex-basis: 210px; } .reference-main { padding: 38px 26px 64px; } }
+@media (max-width: 600px) {
+  .reference-sidebar { width: 100%; min-height: 0; border-right: 0; border-bottom: 1px solid #dedee2; padding: 14px 16px 12px; }
+  .reference-brand { margin-bottom: 0; padding: 0 2px 13px; }
+  .reference-sidebar nav { gap: 5px; }
+  .reference-sidebar nav button { min-height: 38px; padding: 9px 11px; }
+  .reference-main { padding: 24px 16px 56px; }
+  .profile-toolbar { margin: 0 0 17px; }
+  .reference-header { gap: 16px; margin-bottom: 24px; }
+  .reference-header h1 { font-size: 35px; }
+  .summary-grid { gap: 10px; }
+  .summary-grid > div, .summary-grid > div:first-child, .summary-grid > div:nth-child(2), .summary-grid > div:nth-child(3), .summary-grid > div:nth-child(4) { min-height: 133px; padding: 16px; }
+  .summary-grid strong { font-size: clamp(17px, 4.4vw, 23px); white-space: normal; }
+  .activity-card { padding: 24px; }
+  .panel-heading { padding: 20px; }
+  .form-panel { padding: 22px; }
+  .login-page { padding: 0; }
+  .login-shell { border: 0; border-radius: 0; box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) { button, input, select, textarea { transition: none; } }
+
+/* Restrained color gives the key ledger states a clear visual cue. */
+.reference-sidebar { background: #f0f3f8; border-right-color: #dfe6ef; }
+.reference-sidebar nav button.nav-active { color: #24539c; box-shadow: 0 2px 8px rgba(35,83,156,.09); }
+.reference-sidebar nav button.nav-active svg { color: #3168b8; }
+.reference-sidebar nav button:hover { background: #e6edf7; color: #24539c; }
+.eyebrow { color: #5476a7; }
+.black-button, .login-button { border-color: #2b5da8; background: #2b5da8; box-shadow: 0 4px 12px rgba(43,93,168,.16); }
+.black-button:hover, .login-button:hover:not(:disabled) { border-color: #214d8c; background: #214d8c; }
+.text-link, .back-link { color: #3268b2; }
+.text-link:hover, .back-link:hover { color: #204d8d; }
+.period-tabs button.active { color: #24539c; }
+.summary-grid > div:first-child { border-top: 3px solid #d89c75; }
+.summary-grid > div:nth-child(2) { border-top: 3px solid #55a99a; }
+.summary-grid > div:nth-child(3) { border-top: 3px solid #dfbd71; }
+.summary-grid > div:nth-child(4) { border-top: 3px solid #7b9ed1; }
+.legend-purchase { background: #d6a04f; }
+.legend-payment { background: #3b9b87; }
+.type.purchase { border-color: #f1dfbd; background: #fff8e9; color: #896025; }
+.type.payment { border-color: #cce7dc; background: #eaf8f2; color: #227765; }
+.balance-due, .outstanding-row b { color: #a76449; }
+.balance-clear { color: #27806d; }
+.form-grid .partial-toggle:has(input:checked) { border-color: #b9d2f0; background: #f1f6fd; }
+.form-grid .partial-toggle input { accent-color: #2b5da8; }
+.bs-date-trigger svg, .bs-calendar-footer button { color: #3268b2; }
+.bs-calendar-grid button.selected { background: #2b5da8; }
+.login-brand { background: #16345d; }
+.login-brand .login-kicker { color: #bcd3f2; }
+.login-intro { color: #d9e5f5; }
+.notice-icon { background: #edf4fc; color: #2b5da8; }
+.action-notice::after { background: #2b5da8; }

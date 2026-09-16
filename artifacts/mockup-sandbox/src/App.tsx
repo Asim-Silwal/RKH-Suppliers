@@ -2,6 +2,7 @@ import {
   type FormEvent,
   type ReactNode,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -27,8 +28,18 @@ import {
 import { supabase } from "./lib/supabase";
 import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
 import NepaliDate from "nepali-date-converter";
+import ledgerMark from "./assets/rkh-ledger-mark.svg";
 
 type EntryType = "PURCHASE" | "PAYMENT";
+type UserRole = "admin" | "staff";
+type UserProfile = {
+  userId: string;
+  role: UserRole;
+  email: string;
+  fullName: string;
+  contact: string;
+  avatarPath: string | null;
+};
 type DashboardPeriod = "week" | "month" | "year" | "custom" | "lifetime";
 
 type Party = {
@@ -134,15 +145,45 @@ function Shell({
   active,
   children,
   onLogout,
+  role,
+  profile,
+  avatarUrl,
+  onSaveProfile,
 }: {
   active: string;
   children: ReactNode;
   onLogout: () => void;
+  role: UserRole;
+  profile: UserProfile;
+  avatarUrl: string | null;
+  onSaveProfile: (fullName: string, contact: string, photo: File | null) => Promise<string | null>;
 }) {
-  const links = [
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const dismiss = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", dismiss);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [menuOpen]);
+  const links = role === "admin" ? [
     ["dashboard", "Dashboard", LayoutDashboard],
     ["parties", "Parties", UsersRound],
-    ["add-entry", "New transaction", Plus],
+    ["add-party", "Add Party", Plus],
+    ["add-entry", "Main Entry", Plus],
+    ["transactions", "Transactions", FileText],
+  ] as const : [
+    ["dashboard", "Dashboard", LayoutDashboard],
     ["transactions", "Transactions", FileText],
   ] as const;
 
@@ -153,12 +194,12 @@ function Shell({
           className="reference-brand"
           onClick={() => go("dashboard")}
         >
-          <span>RKH</span>
+          <img className="brand-mark" src={ledgerMark} alt="" />
 
-          <strong>RKH Suppliers</strong>
+          <strong>RKH Ledger</strong>
 
           <small>
-            PRIVATE LEDGER ·
+            RKH SUPPLIERS ·
             <br />
             KATHMANDU
           </small>
@@ -191,9 +232,89 @@ function Shell({
         </footer>
       </aside>
 
-      <main className="reference-main">{children}</main>
+      <main className="reference-main">
+        <div className="profile-toolbar" ref={menuRef}>
+          <button type="button" className="profile-trigger" aria-label="Open profile" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
+          </button>
+          {menuOpen && <div className="profile-menu">
+            <div className="profile-menu-person"><ProfileAvatar profile={profile} avatarUrl={avatarUrl} /><div><strong>{profile.fullName || "Your profile"}</strong><small>{profile.email}</small></div></div>
+            <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{role === "admin" ? "Admin" : "Staff"}</dd></div></dl>
+            <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
+          </div>}
+        </div>
+        {children}
+      </main>
+      {editing && <EditProfile profile={profile} avatarUrl={avatarUrl} onClose={() => setEditing(false)} onSave={onSaveProfile} />}
     </div>
   );
+}
+
+function ProfileAvatar({ profile, avatarUrl }: { profile: UserProfile; avatarUrl: string | null }) {
+  const initials = profile.fullName.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || profile.email[0]?.toUpperCase() || "?";
+  return <span className="profile-avatar" aria-hidden="true">{avatarUrl ? <img src={avatarUrl} alt="" /> : initials}</span>;
+}
+
+function EditProfile({ profile, avatarUrl, onClose, onSave }: {
+  profile: UserProfile;
+  avatarUrl: string | null;
+  onClose: () => void;
+  onSave: (fullName: string, contact: string, photo: File | null) => Promise<string | null>;
+}) {
+  const [fullName, setFullName] = useState(profile.fullName);
+  const [contact, setContact] = useState(profile.contact);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    if (!photo) { setPreview(null); return; }
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && !saving) onClose(); };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [onClose, saving]);
+  const choosePhoto = (file: File | undefined) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Choose a JPG, PNG, or WEBP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("The photo must be 5 MB or smaller.");
+      return;
+    }
+    setError("");
+    setPhoto(file);
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const saveError = await onSave(fullName.trim(), contact.trim(), photo);
+    setSaving(false);
+    if (saveError) setError(saveError);
+    else onClose();
+  };
+  return <div className="profile-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
+    <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
+      <div className="profile-modal-head"><div><span className="eyebrow">ACCOUNT</span><h2 id="edit-profile-title">Edit profile</h2></div><button type="button" aria-label="Close profile editor" onClick={onClose} disabled={saving}><X size={18} /></button></div>
+      <form onSubmit={submit}>
+        <div className="profile-photo-field"><span className="profile-avatar large">{preview || avatarUrl ? <img src={preview || avatarUrl || ""} alt="Profile preview" /> : (fullName.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || profile.email[0]?.toUpperCase() || "?")}</span><label>Profile photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => choosePhoto(event.target.files?.[0])} disabled={saving} /><small>JPG, PNG, or WEBP. Maximum 5 MB.</small></label></div>
+        <label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} maxLength={120} disabled={saving} /></label>
+        <label>Contact number<input value={contact} onChange={(event) => setContact(event.target.value)} type="tel" maxLength={40} disabled={saving} /></label>
+        <label>Email<input value={profile.email} readOnly aria-readonly="true" /></label>
+        <p className="profile-role-note">Role: {profile.role === "admin" ? "Admin" : "Staff"}</p>
+        {error && <p className="profile-form-error" role="alert">{error}</p>}
+        <div className="profile-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : "Save profile"}</button></div>
+      </form>
+    </section>
+  </div>;
 }
 
 /* =========================================================
@@ -298,9 +419,11 @@ function Table({
 function Dashboard({
   parties,
   entries,
+  role,
 }: {
   parties: Party[];
   entries: Entry[];
+  role: UserRole;
 }) {
   const [period, setPeriod] = useState<DashboardPeriod>("month");
   const [customFrom, setCustomFrom] = useState(() => currentBsRange("month").from);
@@ -336,7 +459,7 @@ function Dashboard({
         eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
         description="Track purchases, payments, and outstanding party balances in one place."
-        action={() => go("add-entry")}
+        action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -411,7 +534,7 @@ function Dashboard({
             <span><i className="legend-payment" /> Payments <strong>{money(collected)}</strong></span>
           </div>
         </div>
-        <div className="activity-chart" style={{ background: purchased + collected ? `conic-gradient(#d9a63d 0 ${(purchased / (purchased + collected)) * 100}%, #08704a 0 100%)` : "#e7eee5" }}>
+        <div className="activity-chart" style={{ background: purchased + collected ? `conic-gradient(#d6a04f 0 ${(purchased / (purchased + collected)) * 100}%, #3b9b87 0 100%)` : "#ebebef" }}>
           <div><strong>{periodEntries.length}</strong><small>transactions</small></div>
         </div>
       </section>
@@ -453,17 +576,17 @@ function Dashboard({
               <h2>Outstanding balances</h2>
             </div>
 
-            <button
-              className="text-link"
-              onClick={() => go("parties")}
+            {role === "admin" && <button
+               className="text-link"
+               onClick={() => go("parties")}
             >
               View parties
               <ArrowRight size={14} />
-            </button>
+            </button>}
           </div>
 
           {dueParties.map(({ party, balance }) => (
-              <button
+              role === "admin" ? <button
                 className="outstanding-row"
                 key={party.id}
                 onClick={() =>
@@ -478,7 +601,10 @@ function Dashboard({
                 <b>
                   {money(balance)}
                 </b>
-              </button>
+              </button> : <div className="outstanding-row static" key={party.id}>
+                <span><strong>{party.name}</strong><small>{party.location}</small></span>
+                <b>{money(balance)}</b>
+              </div>
             ))}
           {dueParties.length === 0 && (
             <p className="empty-state">{period === "lifetime" ? "No outstanding balances." : "No outstanding balances as of this date."}</p>
@@ -1039,9 +1165,11 @@ function AddEntry({
 function Transactions({
   parties,
   entries,
+  role,
 }: {
   parties: Party[];
   entries: Entry[];
+  role: UserRole;
 }) {
   const [query, setQuery] =
     useState("");
@@ -1087,7 +1215,7 @@ function Transactions({
         eyebrow="LEDGER / ALL TRANSACTIONS"
         title="Transactions"
         description="Review purchases and payments. Filter the list or export the current results."
-        action={() => go("add-entry")}
+        action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -1567,12 +1695,10 @@ function Login() {
       <div className="login-shell">
         <section className="login-brand">
           <div>
-            <span className="login-logo">
-              RKH
-            </span>
+            <img className="login-logo brand-mark" src={ledgerMark} alt="" />
 
             <p className="login-kicker">
-              RKH SUPPLIERS
+              RKH LEDGER
             </p>
 
             <h1>
@@ -1688,6 +1814,13 @@ export default function App() {
     authenticated,
     setAuthenticated,
   ] = useState<boolean | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState("");
+  const role = profile?.userId === authUserId ? profile.role : null;
+  const restrictedRoute = role === "staff" &&
+    ["parties", "add-party", "edit-party", "add-entry"].includes(current.path);
 
   const [parties, setParties] =
     useState<Party[]>([]);
@@ -1738,6 +1871,7 @@ export default function App() {
     supabase.auth
       .getSession()
       .then(({ data }) => {
+        setAuthUserId(data.session?.user.id ?? null);
         setAuthenticated(
           Boolean(data.session),
         );
@@ -1748,6 +1882,7 @@ export default function App() {
     } =
       supabase.auth.onAuthStateChange(
         (_event, session) => {
+          setAuthUserId(session?.user.id ?? null);
           setAuthenticated(
             Boolean(session),
           );
@@ -1757,6 +1892,70 @@ export default function App() {
     return () =>
       subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!authUserId) {
+      setProfile(null);
+      setRoleError("");
+      return;
+    }
+
+    let cancelled = false;
+    setRoleError("");
+
+    const loadRole = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (cancelled) return;
+      if (userError || !user || user.id !== authUserId) {
+        setRoleError(userError?.message ?? "Could not verify your account.");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("role, full_name, contact, avatar_path")
+        .eq("id", user.id)
+        .single();
+      if (cancelled) return;
+      if (error || (data?.role !== "admin" && data?.role !== "staff")) {
+        setRoleError(error?.message ?? "Your account has no valid access role.");
+        return;
+      }
+
+      setProfile({
+        userId: user.id,
+        role: data.role as UserRole,
+        email: user.email ?? "",
+        fullName: data.full_name ?? "",
+        contact: data.contact ?? "",
+        avatarPath: data.avatar_path ?? null,
+      });
+    };
+
+    void loadRole();
+    return () => { cancelled = true; };
+  }, [authUserId]);
+
+  useEffect(() => {
+    if (!profile?.avatarPath || profile.userId !== authUserId) {
+      setAvatarUrl(null);
+      return;
+    }
+    let cancelled = false;
+    const refreshAvatar = async () => {
+      const { data, error } = await supabase.storage.from("avatars").createSignedUrl(profile.avatarPath!, 3600);
+      if (!cancelled) setAvatarUrl(error ? null : data.signedUrl);
+    };
+    void refreshAvatar();
+    const interval = window.setInterval(() => { void refreshAvatar(); }, 50 * 60 * 1000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, [authUserId, profile?.userId, profile?.avatarPath]);
+
+  useEffect(() => {
+    if (restrictedRoute) {
+      go("dashboard");
+    }
+  }, [restrictedRoute]);
 
   /* LOAD DATABASE */
 
@@ -2094,6 +2293,31 @@ export default function App() {
     go("dashboard");
   };
 
+  const saveProfile = async (fullName: string, contact: string, photo: File | null): Promise<string | null> => {
+    if (!profile || profile.userId !== authUserId) return "Your session has changed. Please sign in again.";
+    let avatarPath = profile.avatarPath;
+    if (photo) {
+      const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as Record<string, string>)[photo.type];
+      if (!extension || photo.size > 5 * 1024 * 1024) return "Choose a JPG, PNG, or WEBP image under 5 MB.";
+      avatarPath = `${profile.userId}/avatar-${Date.now()}.${extension}`;
+      const { error } = await supabase.storage.from("avatars").upload(avatarPath, photo, { contentType: photo.type });
+      if (error) return error.message;
+    }
+    const { error } = await supabase.from("profiles").update({
+      full_name: fullName,
+      contact,
+      avatar_path: avatarPath,
+      updated_at: new Date().toISOString(),
+    }).eq("id", profile.userId);
+    if (error) return error.message;
+    if (photo && avatarPath) {
+      const { data } = await supabase.storage.from("avatars").createSignedUrl(avatarPath, 3600);
+      setAvatarUrl(data?.signedUrl ?? null);
+    }
+    setProfile({ ...profile, fullName, contact, avatarPath });
+    return null;
+  };
+
   /* AUTH LOADING */
 
   if (authenticated === null) {
@@ -2110,6 +2334,20 @@ export default function App() {
 
   if (!authenticated) {
     return <Login />;
+  }
+
+  if (roleError) {
+    return (
+      <div className="login-page"><div className="login-panel">
+        <h1>Could not verify access</h1>
+        <p>{roleError}</p>
+        <button className="outline-button" onClick={logout}>Sign out</button>
+      </div></div>
+    );
+  }
+
+  if (!role || !profile) {
+    return <div className="login-page"><p>Checking access...</p></div>;
   }
 
   /* DATABASE LOADING */
@@ -2158,10 +2396,13 @@ export default function App() {
     <Dashboard
       parties={parties}
       entries={entries}
+      role={role}
     />
   );
 
-  if (
+  if (restrictedRoute) {
+    // Keep restricted pages out of the render tree while the URL redirects.
+  } else if (
     current.path === "parties" &&
     current.id
   ) {
@@ -2235,13 +2476,14 @@ export default function App() {
       <Transactions
         parties={parties}
         entries={entries}
+        role={role}
       />
     );
   }
 
   return (
     <>
-      <Shell active={current.path} onLogout={logout}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
