@@ -1,146 +1,43 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { ArrowRight, CalendarDays, Check, Download, FileText, LayoutDashboard, Plus, Search, Trash2, UsersRound } from "lucide-react";
 
-import { modules as discoveredModules } from "./.generated/mockup-components";
+type EntryType = "PURCHASE" | "PAYMENT";
+type Party = { id: string; name: string; company?: string; contact?: string; location?: string; notes?: string };
+type Entry = { id: string; partyId: string; type: EntryType; amount: number; ad: string; bs: string; description: string };
 
-type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
+const seedParties: Party[] = [
+  { id: "abc", name: "ABC Traders", company: "ABC Import House", contact: "9841234567", location: "New Road, Kathmandu" },
+  { id: "ram", name: "Ram Store", location: "Patan" },
+  { id: "xyz", name: "XYZ Suppliers", company: "XYZ Suppliers Pvt. Ltd.", contact: "9801234567", location: "Teku, Kathmandu" },
+];
+const seedEntries: Entry[] = [
+  { id: "1", partyId: "ram", type: "PAYMENT", amount: 20000, ad: "2026-10-02", bs: "2083-06-16", description: "Advance payment" },
+  { id: "2", partyId: "xyz", type: "PAYMENT", amount: 50000, ad: "2026-09-28", bs: "2083-06-12", description: "Settled in full" },
+  { id: "3", partyId: "abc", type: "PAYMENT", amount: 20000, ad: "2026-09-26", bs: "2083-06-10", description: "Payment received" },
+  { id: "4", partyId: "ram", type: "PURCHASE", amount: 75000, ad: "2026-09-24", bs: "2083-06-08", description: "Retail stock" },
+  { id: "5", partyId: "abc", type: "PAYMENT", amount: 40000, ad: "2026-09-21", bs: "2083-06-05", description: "Partial payment" },
+  { id: "6", partyId: "xyz", type: "PURCHASE", amount: 50000, ad: "2026-09-20", bs: "2083-06-04", description: "Supplier invoice" },
+  { id: "7", partyId: "abc", type: "PURCHASE", amount: 100000, ad: "2026-09-17", bs: "2083-06-01", description: "Imported goods" },
+];
+const money = (value: number) => `NPR ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const partyName = (parties: Party[], id: string) => parties.find((party) => party.id === id)?.name ?? "Unknown party";
+const balanceOf = (entries: Entry[], partyId: string) => entries.filter((entry) => entry.partyId === partyId).reduce((sum, entry) => sum + (entry.type === "PURCHASE" ? entry.amount : -entry.amount), 0);
+function currentRoute() { const base = import.meta.env.BASE_URL.replace(/\/$/, ""); const pathname = window.location.pathname.startsWith(base) ? window.location.pathname.slice(base.length) : window.location.pathname; const parts = pathname.split("/").filter(Boolean); return { path: parts[0] || "dashboard", id: parts[1] }; }
+function go(path: string) { const base = import.meta.env.BASE_URL.replace(/\/$/, ""); window.history.pushState({}, "", `${base}/${path}`); window.dispatchEvent(new PopStateEvent("popstate")); }
 
-function _resolveComponent(
-  mod: Record<string, unknown>,
-  name: string,
-): ComponentType | undefined {
-  const fns = Object.values(mod).filter(
-    (v) => typeof v === "function",
-  ) as ComponentType[];
-  return (
-    (mod.default as ComponentType) ||
-    (mod.Preview as ComponentType) ||
-    (mod[name] as ComponentType) ||
-    fns[fns.length - 1]
-  );
+function Shell({ active, children }: { active: string; children: ReactNode }) {
+  const links = [["dashboard", "Dashboard", LayoutDashboard], ["parties", "Add party", UsersRound], ["add-entry", "Main entry", Plus], ["transactions", "Transactions", FileText]] as const;
+  return <div className="reference-app"><aside className="reference-sidebar"><button className="reference-brand" onClick={() => go("dashboard")}><span>RKH</span><strong>RKH Suppliers</strong><small>PRIVATE LEDGER ·<br />KATHMANDU</small></button><nav aria-label="Main navigation"><label>LEDGER</label>{links.map(([href, label, Icon]) => <button key={href} className={active === href ? "nav-active" : ""} onClick={() => go(href)}><Icon size={15} />{label}</button>)}</nav><footer><span>FAMILY BUSINESS / KATHMANDU</span><small>Records are kept private.</small></footer></aside><main className="reference-main">{children}</main></div>;
 }
+function Header({ eyebrow, title, description, action, label }: { eyebrow: string; title: string; description: string; action?: () => void; label?: string }) { return <header className="reference-header"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1><p>{description}</p>{action && label === "Back to parties" && <button className="back-link" onClick={action}>Back to parties</button>}</div>{action && label !== "Back to parties" && <button className="black-button" onClick={action}><Plus size={15} />{label}</button>}</header>; }
+function Table({ entries, parties }: { entries: Entry[]; parties: Party[] }) { return <div className="ledger-table"><div className="ledger-row ledger-head"><span>DATE</span><span>PARTY</span><span>TYPE</span><span>DESCRIPTION</span><span>AMOUNT</span></div>{entries.map((entry) => <div className="ledger-row" key={entry.id}><span><b>{entry.ad}</b><small>{entry.bs} BS</small></span><span><b>{partyName(parties, entry.partyId)}</b><small>{parties.find((party) => party.id === entry.partyId)?.company}</small></span><span className={`type ${entry.type.toLowerCase()}`}>{entry.type}</span><span>{entry.description}</span><strong>{money(entry.amount)}</strong></div>)}</div>; }
+function Dashboard({ parties, entries }: { parties: Party[]; entries: Entry[] }) { const purchased = entries.filter((e) => e.type === "PURCHASE").reduce((s, e) => s + e.amount, 0); const collected = entries.filter((e) => e.type === "PAYMENT").reduce((s, e) => s + e.amount, 0); return <><Header eyebrow="DAILY LEDGER" title="Dashboard" description="A clear view of what has moved, what is owed, and what needs your attention." action={() => go("add-entry")} label="Main entry" /><section className="summary-grid"><div><span>Total money to be collected</span><strong>{money(Math.max(0, purchased - collected))}</strong><small>Outstanding across all parties</small></div><div><span>Total money collected</span><strong>{money(collected)}</strong><small>Payments received</small></div><div><span>Total purchased</span><strong>{money(purchased)}</strong><small>Goods recorded</small></div><div><span>Total parties</span><strong>{parties.length}</strong><small>In the directory</small></div></section><div className="dashboard-columns"><section className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">LATEST MOVEMENT</span><h2>Recent transactions</h2></div><button className="text-link" onClick={() => go("transactions")}>View all <ArrowRight size={14} /></button></div><Table entries={entries} parties={parties} /></section><section className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">FOLLOW-UP</span><h2>Money to be collected</h2></div><button className="text-link" onClick={() => go("parties")}>View all <ArrowRight size={14} /></button></div>{parties.filter((party) => balanceOf(entries, party.id) > 0).map((party) => <button className="outstanding-row" key={party.id} onClick={() => go(`parties/${party.id}`)}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balanceOf(entries, party.id))}</b></button>)}</section></div></>; }
+function Parties({ parties, entries }: { parties: Party[]; entries: Entry[] }) { const [query, setQuery] = useState(""); const shown = parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.toLowerCase())); return <><Header eyebrow="PARTY DIRECTORY" title="Add party" description="Keep one clear record for every supplier, retailer, or customer." action={() => go("add-party")} label="Add party" /><div className="filter-bar"><Search size={16} /><input aria-label="Search parties" placeholder="Search name, company, or contact" value={query} onChange={(e) => setQuery(e.target.value)} /></div><section className="reference-panel table-panel"><div className="party-row party-head"><span>PARTY</span><span>CONTACT</span><span>LOCATION</span><span>BALANCE</span><span /></div>{shown.map((party) => <button className="party-row party-button" key={party.id} onClick={() => go(`parties/${party.id}`)}><span><b>{party.name}</b><small>{party.company}</small></span><span>{party.contact || "—"}</span><span>{party.location || "—"}</span><strong className={balanceOf(entries, party.id) > 0 ? "balance-due" : "balance-clear"}>{balanceOf(entries, party.id) > 0 ? money(balanceOf(entries, party.id)) : "Settled"}</strong><ArrowRight size={15} /></button>)}</section></>; }
+function FormField({ label, children }: { label: string; children: ReactNode }) { return <label>{label}{children}</label>; }
+function AddParty({ save }: { save: (party: Party) => void }) { const [form, setForm] = useState<Party>({ id: "", name: "", company: "", contact: "", location: "", notes: "" }); const submit = (e: FormEvent) => { e.preventDefault(); if (form.name.trim()) { save({ ...form, id: crypto.randomUUID() }); go("parties"); } }; return <><Header eyebrow="PARTY DIRECTORY / NEW" title="Add party" description="Enter the party information you currently keep on paper." action={() => go("parties")} label="Back to parties" /><form className="form-panel" onSubmit={submit}><h2>Party information</h2><div className="form-grid"><FormField label="Name *"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Party name" /></FormField><FormField label="Company name"><input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></FormField><FormField label="Contact number"><input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></FormField><FormField label="Location"><input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" /></FormField></div><FormField label="Notes"><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></FormField><div className="form-actions"><button type="button" className="outline-button" onClick={() => go("parties")}>Cancel</button><button className="black-button"><Check size={15} />Save party</button></div></form></>; }
+function AddEntry({ parties, save }: { parties: Party[]; save: (entry: Entry) => void }) { const [form, setForm] = useState({ partyId: "", type: "PURCHASE" as EntryType, amount: "", bs: "2083-06-20", description: "" }); const submit = (e: FormEvent) => { e.preventDefault(); if (form.partyId && form.amount) { save({ id: crypto.randomUUID(), partyId: form.partyId, type: form.type, amount: Number(form.amount), ad: "2026-10-06", bs: form.bs, description: form.description }); go("transactions"); } }; return <><Header eyebrow="MAIN ENTRY / NEW" title="Main entry" description="Record one purchase or one payment. The balance is recalculated from every entry." action={() => go("transactions")} label="View transactions" /><form className="form-panel" onSubmit={submit}><h2>Entry details</h2><div className="form-grid"><FormField label="Select party *"><select required value={form.partyId} onChange={(e) => setForm({ ...form, partyId: e.target.value })}><option value="">Choose a party</option>{parties.map((party) => <option key={party.id} value={party.id}>{party.name}</option>)}</select></FormField><FormField label="Entry type *"><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as EntryType })}><option value="PURCHASE">Purchased amount</option><option value="PAYMENT">Money given / paid</option></select></FormField><FormField label="Amount (NPR) *"><input required type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" /></FormField><FormField label="Date (Bikram Sambat) *"><div className="date-input"><input required pattern="20[0-9]{2}-[0-9]{2}-[0-9]{2}" value={form.bs} onChange={(e) => setForm({ ...form, bs: e.target.value })} /><CalendarDays size={15} /></div><small>Format: YYYY-MM-DD BS</small></FormField></div><FormField label="Description"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Goods purchased, payment reference, or notes" /></FormField><div className="form-actions"><button type="button" className="outline-button" onClick={() => go("transactions")}>Cancel</button><button className="black-button"><Check size={15} />Save entry</button></div></form></>; }
+function Transactions({ parties, entries }: { parties: Party[]; entries: Entry[] }) { const [query, setQuery] = useState(""); const [type, setType] = useState("all"); const [from, setFrom] = useState(""); const [to, setTo] = useState(""); const shown = entries.filter((entry) => { const party = parties.find((p) => p.id === entry.partyId); const text = `${party?.name} ${party?.company} ${entry.description}`.toLowerCase(); return (!query || text.includes(query.toLowerCase())) && (type === "all" || type === entry.type) && (!from || entry.bs >= from) && (!to || entry.bs <= to); }); return <><Header eyebrow="LEDGER / ALL ENTRIES" title="Transactions" description="Search and filter every purchase and payment in the business." action={() => go("add-entry")} label="Main entry" /><div className="transaction-actions"><button className="outline-button" onClick={() => { const csv = ["date_bs,party,type,amount,description", ...shown.map((e) => `${e.bs},${partyName(parties, e.partyId)},${e.type},${e.amount},${e.description}`)].join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = "rkh-ledger.csv"; link.click(); }}><Download size={15} />Export CSV</button></div><div className="filter-bar transaction-filters"><Search size={16} /><input aria-label="Search transactions" placeholder="Search party or description" value={query} onChange={(e) => setQuery(e.target.value)} /><select aria-label="Filter transaction type" value={type} onChange={(e) => setType(e.target.value)}><option value="all">All entries</option><option value="PURCHASE">Purchased</option><option value="PAYMENT">Money given</option></select><input aria-label="From Nepali date" placeholder="From BS · YYYY-MM-DD" value={from} onChange={(e) => setFrom(e.target.value)} /><input aria-label="To Nepali date" placeholder="To BS · YYYY-MM-DD" value={to} onChange={(e) => setTo(e.target.value)} /></div><section className="reference-panel table-panel"><Table entries={shown} parties={parties} /></section></>; }
+function EditParty({ party, save }: { party: Party; save: (party: Party) => void }) { const [form, setForm] = useState(party); const submit = (event: FormEvent) => { event.preventDefault(); if (form.name.trim()) { save(form); go(`parties/${party.id}`); } }; return <><Header eyebrow="PARTY DIRECTORY / EDIT" title="Edit party" description="Update the contact information for this party." action={() => go(`parties/${party.id}`)} label="Back to party" /><form className="form-panel" onSubmit={submit}><h2>Party information</h2><div className="form-grid"><FormField label="Name *"><input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField><FormField label="Company name"><input value={form.company || ""} onChange={(e) => setForm({ ...form, company: e.target.value })} /></FormField><FormField label="Contact number"><input value={form.contact || ""} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></FormField><FormField label="Location"><input value={form.location || ""} onChange={(e) => setForm({ ...form, location: e.target.value })} /></FormField></div><FormField label="Notes"><textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></FormField><div className="form-actions"><button type="button" className="outline-button" onClick={() => go(`parties/${party.id}`)}>Cancel</button><button className="black-button"><Check size={15} />Save changes</button></div></form></>; }
+function PartyDetail({ party, entries, edit, remove }: { party: Party; entries: Entry[]; edit: () => void; remove: () => void }) { const rows = entries.filter((entry) => entry.partyId === party.id); const purchased = rows.filter((e) => e.type === "PURCHASE").reduce((s, e) => s + e.amount, 0); const paid = rows.filter((e) => e.type === "PAYMENT").reduce((s, e) => s + e.amount, 0); return <><Header eyebrow="PARTY LEDGER" title={party.name} description={party.company || "Party account"} action={() => go(`add-entry?party=${party.id}`)} label="Add transaction" /><button className="back-link" onClick={() => go("parties")}>Back to parties</button><div className="party-actions"><button className="outline-button" onClick={edit}>Edit party</button><button className="delete-button" onClick={remove}><Trash2 size={14} />Delete party</button></div><section className="summary-grid"><div><span>Total purchased</span><strong>{money(purchased)}</strong></div><div><span>Total paid</span><strong>{money(paid)}</strong></div><div><span>Outstanding balance</span><strong>{money(Math.max(0, purchased - paid))}</strong></div><div><span>Credit / advance</span><strong>{money(Math.max(0, paid - purchased))}</strong></div></section><section className="party-info reference-panel"><div><span>CONTACT</span><b>{party.contact || "—"}</b></div><div><span>LOCATION</span><b>{party.location || "—"}</b></div><div><span>NOTES</span><b>{party.notes || "No notes"}</b></div></section><section className="reference-panel table-panel"><div className="panel-heading"><div><span className="eyebrow">ACCOUNT HISTORY</span><h2>Transaction history</h2></div></div><Table entries={rows} parties={[party]} /></section></>; }
 
-function PreviewRenderer({
-  componentPath,
-  modules,
-}: {
-  componentPath: string;
-  modules: ModuleMap;
-}) {
-  const [Component, setComponent] = useState<ComponentType | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setComponent(null);
-    setError(null);
-
-    async function loadComponent(): Promise<void> {
-      const key = `./components/mockups/${componentPath}.tsx`;
-      const loader = modules[key];
-      if (!loader) {
-        setError(`No component found at ${componentPath}.tsx`);
-        return;
-      }
-
-      try {
-        const mod = await loader();
-        if (cancelled) {
-          return;
-        }
-        const name = componentPath.split("/").pop()!;
-        const comp = _resolveComponent(mod, name);
-        if (!comp) {
-          setError(
-            `No exported React component found in ${componentPath}.tsx\n\nMake sure the file has at least one exported function component.`,
-          );
-          return;
-        }
-        setComponent(() => comp);
-      } catch (e) {
-        if (cancelled) {
-          return;
-        }
-
-        const message = e instanceof Error ? e.message : String(e);
-        setError(`Failed to load preview.\n${message}`);
-      }
-    }
-
-    void loadComponent();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [componentPath, modules]);
-
-  if (error) {
-    return (
-      <pre style={{ color: "red", padding: "2rem", fontFamily: "system-ui" }}>
-        {error}
-      </pre>
-    );
-  }
-
-  if (!Component) return null;
-
-  return <Component />;
-}
-
-function getBasePath(): string {
-  return import.meta.env.BASE_URL.replace(/\/$/, "");
-}
-
-function getPreviewExamplePath(): string {
-  const basePath = getBasePath();
-  return `${basePath}/preview/ComponentName`;
-}
-
-function Gallery() {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-      <div className="text-center max-w-md">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-3">
-          Component Preview Server
-        </h1>
-        <p className="text-gray-500 mb-4">
-          This server renders individual components for the workspace canvas.
-        </p>
-        <p className="text-sm text-gray-400">
-          Access component previews at{" "}
-          <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
-            {getPreviewExamplePath()}
-          </code>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function getPreviewPath(): string | null {
-  const basePath = getBasePath();
-  const { pathname } = window.location;
-  const local =
-    basePath && pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length) || "/"
-      : pathname;
-  const match = local.match(/^\/preview\/(.+)$/);
-  return match ? match[1] : null;
-}
-
-function App() {
-  const previewPath = getPreviewPath();
-
-  if (previewPath) {
-    return (
-      <PreviewRenderer
-        componentPath={previewPath}
-        modules={discoveredModules}
-      />
-    );
-  }
-
-  return <Gallery />;
-}
-
-export default App;
+export default function App() { const [current, setCurrent] = useState(currentRoute()); const [parties, setParties] = useState<Party[]>(() => JSON.parse(localStorage.getItem("rkh-parties") || "null") || seedParties); const [entries, setEntries] = useState<Entry[]>(() => JSON.parse(localStorage.getItem("rkh-entries") || "null") || seedEntries); useEffect(() => { const listen = () => setCurrent(currentRoute()); window.addEventListener("popstate", listen); return () => window.removeEventListener("popstate", listen); }, []); useEffect(() => { localStorage.setItem("rkh-parties", JSON.stringify(parties)); }, [parties]); useEffect(() => { localStorage.setItem("rkh-entries", JSON.stringify(entries)); }, [entries]); let page: ReactNode = <Dashboard parties={parties} entries={entries} />; if (current.path === "parties" && current.id) { const party = parties.find((item) => item.id === current.id); page = party ? <PartyDetail party={party} entries={entries} edit={() => go(`edit-party/${party.id}`)} remove={() => { if (window.confirm(`Delete ${party.name}? Its transaction history will also be removed.`)) { setParties((items) => items.filter((item) => item.id !== party.id)); setEntries((items) => items.filter((item) => item.partyId !== party.id)); go("parties"); } }} /> : page; } else if (current.path === "edit-party" && current.id) { const party = parties.find((item) => item.id === current.id); page = party ? <EditParty party={party} save={(updated) => setParties((items) => items.map((item) => item.id === updated.id ? updated : item))} /> : page; } else if (current.path === "parties") page = <Parties parties={parties} entries={entries} />; else if (current.path === "add-party") page = <AddParty save={(party) => setParties((items) => [...items, party])} />; else if (current.path === "add-entry") page = <AddEntry parties={parties} save={(entry) => setEntries((items) => [entry, ...items])} />; else if (current.path === "transactions") page = <Transactions parties={parties} entries={entries} />; return <Shell active={current.path}>{page}</Shell>; }
