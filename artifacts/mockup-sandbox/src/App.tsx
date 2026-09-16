@@ -2009,7 +2009,7 @@ export default function App() {
 
   useEffect(() => {
     if (!notice) return;
-    const timeout = window.setTimeout(() => setNotice(null), 4200);
+    const timeout = window.setTimeout(() => setNotice(null), notice.tone === "success" ? 2800 : 4200);
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
@@ -2718,6 +2718,21 @@ function PartySuggestions({ id, parties, active, onSelect, emptyMessage }: {
 }
 
 function ActionNotice({ notice, dismiss }: { notice: Notice | null; dismiss: () => void }) {
+  if (notice?.tone === "success") {
+    return (
+      <div className="success-overlay" key={notice.id} role="status" aria-live="polite" aria-atomic="true">
+        <div className="success-content">
+          <svg className="success-mark" viewBox="0 0 160 160" fill="none" aria-hidden="true">
+            <circle className="success-ring" cx="80" cy="80" r="65" strokeWidth="5" />
+            <path className="success-check" d="M48 81 70 103 113 59" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <strong>{notice.title}</strong>
+          <span>{notice.detail}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="notice-region" aria-live="polite" aria-atomic="true">
       {notice && (
