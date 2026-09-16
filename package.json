@@ -10,7 +10,8 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.3"
+    "@replit/connectors-sdk": "^0.4.3",
+    "@supabase/supabase-js": "^2.116.0"
   },
   "devDependencies": {
     "@esbuild/win32-x64": "0.28.2",
