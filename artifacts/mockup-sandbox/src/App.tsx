@@ -149,6 +149,7 @@ function Shell({
   profile,
   avatarUrl,
   onSaveProfile,
+  snapshot,
 }: {
   active: string;
   children: ReactNode;
@@ -157,6 +158,7 @@ function Shell({
   profile: UserProfile;
   avatarUrl: string | null;
   onSaveProfile: (fullName: string, contact: string, photo: File | null) => Promise<string | null>;
+  snapshot: { outstanding: number; partyCount: number; todayBs: string };
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -220,15 +222,14 @@ function Shell({
           ))}
         </nav>
 
-        <footer>
-          <span>RKH SUPPLIERS · KATHMANDU</span>
-
-          <small>Private business records</small>
-
-          <button className="outline-button" onClick={onLogout}>
-            <LogOut size={14} />
-            Sign out
-          </button>
+        <footer className="sidebar-snapshot">
+          <span className="sidebar-snapshot-heading">LEDGER AT A GLANCE</span>
+          <strong>{money(snapshot.outstanding)}</strong>
+          <small>Outstanding to collect</small>
+          <div className="sidebar-snapshot-meta">
+            <span>{snapshot.partyCount} {snapshot.partyCount === 1 ? "party" : "parties"}</span>
+            <span>{snapshot.todayBs} BS</span>
+          </div>
         </footer>
       </aside>
 
@@ -2483,7 +2484,7 @@ export default function App() {
 
   return (
     <>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + Math.max(0, balanceOf(entries, party.id)), 0), partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
