@@ -14,6 +14,7 @@ import {
   Check,
   Download,
   FileText,
+  ImagePlus,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -266,15 +267,32 @@ function EditProfile({ profile, avatarUrl, onClose, onSave }: {
   const [fullName, setFullName] = useState(profile.fullName);
   const [contact, setContact] = useState(profile.contact);
   const [photo, setPhoto] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [photoImage, setPhotoImage] = useState<HTMLImageElement | null>(null);
+  const [verticalPosition, setVerticalPosition] = useState(50);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    if (!photo) { setPreview(null); return; }
+    if (!photo) { setPhotoImage(null); return; }
+    let cancelled = false;
     const url = URL.createObjectURL(photo);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
+    const image = new Image();
+    image.onload = () => { if (!cancelled) setPhotoImage(image); };
+    image.onerror = () => { if (!cancelled) setError("This image could not be opened. Choose another photo."); };
+    image.src = url;
+    return () => { cancelled = true; URL.revokeObjectURL(url); };
   }, [photo]);
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas || !photoImage) return;
+    const side = Math.min(photoImage.naturalWidth, photoImage.naturalHeight) / 1.12;
+    const x = (photoImage.naturalWidth - side) / 2;
+    const y = (photoImage.naturalHeight - side) * verticalPosition / 100;
+    canvas.width = 512;
+    canvas.height = 512;
+    canvas.getContext("2d")?.drawImage(photoImage, x, y, side, side, 0, 0, 512, 512);
+  }, [photoImage, verticalPosition]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && !saving) onClose(); };
     document.addEventListener("keydown", escape);
@@ -291,22 +309,53 @@ function EditProfile({ profile, avatarUrl, onClose, onSave }: {
       return;
     }
     setError("");
+    setPhotoImage(null);
     setPhoto(file);
+    setVerticalPosition(50);
   };
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setError("");
-    const saveError = await onSave(fullName.trim(), contact.trim(), photo);
-    setSaving(false);
-    if (saveError) setError(saveError);
-    else onClose();
+    try {
+      let adjustedPhoto: File | null = null;
+      if (photo) {
+        const canvas = previewCanvasRef.current;
+        if (!photoImage || !canvas) throw new Error("Wait for the photo preview to load.");
+        const blob = await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Could not prepare the photo.")), photo.type, 0.9),
+        );
+        adjustedPhoto = new File([blob], photo.name, { type: blob.type });
+      }
+      const saveError = await onSave(fullName.trim(), contact.trim(), adjustedPhoto);
+      if (saveError) setError(saveError);
+      else onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save the photo.");
+    } finally {
+      setSaving(false);
+    }
   };
   return <div className="profile-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
     <section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="edit-profile-title">
       <div className="profile-modal-head"><div><span className="eyebrow">ACCOUNT</span><h2 id="edit-profile-title">Edit profile</h2></div><button type="button" aria-label="Close profile editor" onClick={onClose} disabled={saving}><X size={18} /></button></div>
       <form onSubmit={submit}>
-        <div className="profile-photo-field"><span className="profile-avatar large">{preview || avatarUrl ? <img src={preview || avatarUrl || ""} alt="Profile preview" /> : (fullName.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || profile.email[0]?.toUpperCase() || "?")}</span><label>Profile photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => choosePhoto(event.target.files?.[0])} disabled={saving} /><small>JPG, PNG, or WEBP. Maximum 5 MB.</small></label></div>
+        <div className="profile-photo-editor">
+          <div className="profile-photo-preview">
+            {photo ? <canvas ref={previewCanvasRef} aria-label="Adjusted profile photo preview" role="img" /> : avatarUrl ? <img src={avatarUrl} alt="Current profile photo" /> : <span>{fullName.trim().split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || profile.email[0]?.toUpperCase() || "?"}</span>}
+          </div>
+          <div className="profile-photo-controls">
+            <strong>Profile photo</strong>
+            <button type="button" className="profile-photo-pick" onClick={() => fileInputRef.current?.click()} disabled={saving}><ImagePlus size={16} />{photo || avatarUrl ? "Change photo" : "Choose photo"}</button>
+            <input ref={fileInputRef} className="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { choosePhoto(event.target.files?.[0]); event.target.value = ""; }} disabled={saving} />
+            <small>JPG, PNG, or WEBP · Up to 5 MB</small>
+          </div>
+        </div>
+        {photo && <div className="profile-position-control">
+          <label htmlFor="avatar-vertical">Adjust photo up or down</label>
+          <input id="avatar-vertical" type="range" min="0" max="100" value={verticalPosition} onChange={(event) => setVerticalPosition(Number(event.target.value))} disabled={saving || !photoImage} />
+          <div><span>Up</span><span>Down</span></div>
+        </div>}
         <label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} maxLength={120} disabled={saving} /></label>
         <label>Contact number<input value={contact} onChange={(event) => setContact(event.target.value)} type="tel" maxLength={40} disabled={saving} /></label>
         <label>Email<input value={profile.email} readOnly aria-readonly="true" /></label>

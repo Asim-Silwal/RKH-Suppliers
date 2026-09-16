@@ -112,6 +112,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .login-security { color: #8b8b93; }
 .profile-menu, .profile-modal { border-color: #e1e1e5; box-shadow: 0 18px 45px rgba(28,28,32,.13); }
 .profile-avatar { background: #ebebee; color: #34343b; }
+.profile-photo-editor { display: flex; align-items: center; gap: 20px; padding: 17px; border: 1px solid #e1e5ec; border-radius: 14px; background: #f8f9fb; }
+.profile-photo-preview { display: grid; place-items: center; flex: 0 0 132px; width: 132px; height: 132px; overflow: hidden; border: 4px solid #fff; border-radius: 50%; background: #e7ecf3; box-shadow: 0 2px 12px rgba(35,55,85,.12); color: #3c516e; font-size: 38px; font-weight: 700; }
+.profile-photo-preview img, .profile-photo-preview canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+.profile-photo-controls { display: grid; justify-items: start; gap: 9px; min-width: 0; }
+.profile-photo-controls strong { color: #323742; font-size: 12px; }
+.profile-photo-controls small { color: #777f8d; font-size: 10px; }
+.profile-photo-pick { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 8px 12px; border: 1px solid #cad5e5; border-radius: 9px; background: #fff; color: #285997; font-size: 11px; font-weight: 700; box-shadow: 0 1px 4px rgba(35,55,85,.05); }
+.profile-photo-pick:hover { border-color: #93afd0; background: #edf4fd; }
+.profile-photo-input { display: none; }
+.profile-position-control { display: grid; gap: 8px; padding: 1px 4px 4px; }
+.profile-position-control label { color: #404854; font-size: 12px; font-weight: 650; }
+.profile-modal .profile-position-control input[type="range"] { display: block; width: 100%; min-height: 20px; padding: 0; border: 0; background: transparent; accent-color: #2b5da8; cursor: pointer; }
+.profile-position-control > div { display: flex; justify-content: space-between; color: #818996; font-size: 10px; }
 .notice-copy strong { color: #242428; }
 .notice-copy small { color: #77777e; }
 .action-notice { border-color: #dedee3; box-shadow: 0 16px 40px rgba(28,28,32,.12); }
@@ -165,6 +178,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .form-panel { padding: 22px; }
   .login-page { padding: 0; }
   .login-shell { border: 0; border-radius: 0; box-shadow: none; }
+  .profile-photo-editor { gap: 13px; padding: 12px; }
+  .profile-photo-preview { flex-basis: 100px; width: 100px; height: 100px; font-size: 30px; }
 }
 @media (prefers-reduced-motion: reduce) { button, input, select, textarea { transition: none; } }
 
