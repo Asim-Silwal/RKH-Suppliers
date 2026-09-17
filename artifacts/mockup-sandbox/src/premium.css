@@ -628,3 +628,32 @@ body, .reference-app { background: #f5f5f7; }
 .report-progress.supplier > i { background: var(--ledger-out); }
 .balance-due, .outstanding-row b, .report-row-list b.due { color: var(--ledger-out); }
 .balance-clear { color: var(--ledger-in); }
+
+/* Final phone layout: thumb-friendly navigation and uncluttered content. */
+@media (max-width: 600px) {
+  .reference-app { display: block; min-height: 100dvh; }
+  .reference-sidebar { position: fixed; inset: auto 0 0; z-index: 60; width: 100%; height: auto; min-height: 0; overflow: visible; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid #dce4ee; background: rgba(249, 251, 254, .96); box-shadow: 0 -5px 22px rgba(35, 55, 85, .07); backdrop-filter: blur(18px); }
+  .reference-sidebar .reference-brand, .reference-sidebar .sidebar-snapshot, .reference-sidebar nav label { display: none; }
+  .reference-sidebar nav { display: flex; gap: 3px; width: 100%; overflow: visible; }
+  .reference-sidebar nav button { display: flex; flex: 1 1 0; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; min-height: 53px; padding: 6px 2px; border-radius: 10px; color: #727d8e; text-align: center; font-size: 10px; font-weight: 650; line-height: 1.15; white-space: normal; }
+  .reference-sidebar nav button svg { width: 19px; height: 19px; }
+  .reference-sidebar nav button.nav-active { background: #e8f0fb; color: #24539c; box-shadow: none; }
+  .reference-main { width: 100%; padding: 0 16px calc(86px + env(safe-area-inset-bottom)); }
+  .profile-toolbar, .dashboard-main .profile-toolbar { position: sticky; top: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; min-height: 62px; margin: 0 -16px 20px; padding: 9px 16px; border-bottom: 1px solid #e5e9ef; background: rgba(250, 251, 253, .96); backdrop-filter: blur(18px); }
+  .mobile-brand { display: inline-flex; align-items: center; gap: 9px; padding: 0; border: 0; background: transparent; color: #242832; font-size: 15px; font-weight: 750; letter-spacing: -.03em; }
+  .mobile-brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .reference-header { gap: 14px; margin-bottom: 22px; }
+  .reference-header h1 { font-size: clamp(34px, 10vw, 43px); }
+  .reference-header .black-button, .transaction-actions .outline-button { width: 100%; }
+  .dashboard-filter, .filter-bar { border-radius: 14px; }
+  .summary-grid { gap: 10px; }
+  .summary-grid > div { min-height: 126px; padding: 15px; border-radius: 16px; }
+  .summary-grid strong { font-size: clamp(18px, 5vw, 24px); }
+  .analysis-chart-card, .activity-card, .report-panel { padding: 20px 17px; }
+  .party-toolbar, .party-actions, .form-actions { gap: 9px; }
+  .party-toolbar { align-items: stretch; flex-direction: column; }
+  .party-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .party-actions button, .form-actions button { min-width: 0; justify-content: center; }
+  .transaction-form .transaction-form-grid { gap: 17px; }
+  .party-suggestions { max-height: min(320px, 48dvh); }
+}
