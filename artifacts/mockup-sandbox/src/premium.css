@@ -64,6 +64,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dashboard-columns { gap: 18px; }
 .panel-heading { padding: 23px 25px 18px; }
 .party-export-button { flex: 0 0 auto; }
+.party-export-error { margin: 0; padding: 10px 24px; border-top: 1px solid #f1dddd; color: #a23a3a; font-size: 12px; }
 .ledger-head, .party-head { background: #f8f8f9; color: #888890; }
 .ledger-row, .party-row { border-color: #ededf0; color: #676770; }
 .selectable-ledger-row { grid-template-columns: 24px 1.1fr 1.3fr .9fr 1.3fr 1.05fr; min-width: 720px; }

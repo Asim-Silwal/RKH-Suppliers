@@ -30,6 +30,7 @@ import { supabase } from "./lib/supabase";
 import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
 import NepaliDate from "nepali-date-converter";
 import ledgerMark from "./assets/rkh-ledger-mark.svg";
+import statementFontUrl from "./assets/NotoSansDevanagariUI-Regular.ttf?url";
 
 type EntryType = "PURCHASE" | "PAYMENT";
 type UserRole = "admin" | "staff";
@@ -1734,6 +1735,8 @@ function PartyDetail({
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<"party" | "transactions" | null>(null);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportError, setExportError] = useState("");
   const rows = entries.filter(
     (entry) =>
       entry.partyId === party.id,
@@ -1771,18 +1774,30 @@ function PartyDetail({
       0,
     ) / 100;
 
-  const exportHistory = () => {
-    let balanceCents = 0;
-    const history = [...rows].reverse().map((entry) => {
-      balanceCents += entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount);
-      return [party.name, entry.bs, entry.ad, entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : "", balanceCents / 100];
-    });
-    const slug = party.name.trim().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || party.id;
-    downloadCsv(
-      `rkh-${slug}-statement-${todayDates().bs}.csv`,
-      ["Party", "Date (BS)", "Date (AD)", "Type", "Description", "Purchase (NPR)", "Payment (NPR)", "Balance (NPR)"],
-      [...history, ["TOTAL", "", "", "", "", purchased, paid, purchased - paid]],
-    );
+  const exportHistory = async () => {
+    setExportingPdf(true);
+    setExportError("");
+    try {
+      const [{ createPartyStatementPdf }, fontResponse] = await Promise.all([
+        import("./lib/partyStatementPdf"),
+        fetch(statementFontUrl),
+      ]);
+      if (!fontResponse.ok) throw new Error("Could not load the statement font.");
+      const pdf = await createPartyStatementPdf(party, rows, new Uint8Array(await fontResponse.arrayBuffer()));
+      const url = URL.createObjectURL(new Blob([new Uint8Array(pdf)], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${party.name.trim().replace(/[\\/:*?"<>|]/g, "-") || "customer"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) {
+      console.error(cause);
+      setExportError("Could not create the PDF statement. Please try again.");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   return (
@@ -1885,11 +1900,12 @@ function PartyDetail({
               Transaction history
             </h2>
           </div>
-          <button type="button" className="outline-button party-export-button" onClick={exportHistory} disabled={rows.length === 0}>
+          <button type="button" className="outline-button party-export-button" onClick={exportHistory} disabled={exportingPdf}>
             <Download size={15} />
-            Download CSV
+            {exportingPdf ? "Preparing PDF..." : "Download PDF"}
           </button>
         </div>
+        {exportError && <p className="party-export-error" role="alert">{exportError}</p>}
 
         {selectedTransactions.length > 0 && (
           <div className="selected-transaction-bar">
