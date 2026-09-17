@@ -2321,6 +2321,17 @@ function Login() {
   );
 }
 
+function LoadingScreen({ title, detail }: { title: string; detail: string }) {
+  return <main className="app-loading" aria-live="polite" aria-busy="true">
+    <section className="app-loading-card">
+      <img src={ledgerMark} alt="RKH Ledger" />
+      <span className="app-loading-spinner" aria-hidden="true" />
+      <h1>{title}</h1>
+      <p>{detail}</p>
+    </section>
+  </main>;
+}
+
 /* =========================================================
    MAIN APP
    ========================================================= */
@@ -2885,13 +2896,7 @@ export default function App() {
   /* AUTH LOADING */
 
   if (authenticated === null) {
-    return (
-      <div className="login-page">
-        <p>
-          Loading RKH Suppliers...
-        </p>
-      </div>
-    );
+    return <LoadingScreen title="Opening RKH Ledger" detail="Checking your secure session" />;
   }
 
   /* LOGIN */
@@ -2911,17 +2916,13 @@ export default function App() {
   }
 
   if (!role || !profile) {
-    return <div className="login-page"><p>Checking access...</p></div>;
+    return <LoadingScreen title="Checking access" detail="Preparing your workspace" />;
   }
 
   /* DATABASE LOADING */
 
   if (loadingData) {
-    return (
-      <div className="login-page">
-        <p>Loading ledger...</p>
-      </div>
-    );
+    return <LoadingScreen title="Loading your ledger" detail="Bringing your latest records together" />;
   }
 
   /* DATABASE ERROR */

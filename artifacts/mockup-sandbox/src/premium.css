@@ -713,3 +713,13 @@ body, .reference-app { background: #f5f5f7; }
 .page-transition { animation: route-settle .28s cubic-bezier(.2, .8, .2, 1) both; will-change: opacity, transform; }
 @keyframes route-settle { from { opacity: .01; transform: translate3d(0, 5px, 0) scale(.997); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .page-transition { animation: none; } }
+
+/* Branded loading state shown while a session or ledger is being restored. */
+.app-loading { display: grid; min-height: 100dvh; place-items: center; padding: 24px; background: #f5f5f7; }
+.app-loading-card { display: grid; justify-items: center; width: min(100%, 340px); padding: 34px 28px 32px; border: 1px solid #dedee3; border-radius: 20px; background: rgba(255, 255, 255, .9); box-shadow: 0 18px 45px rgba(20, 28, 42, .08); text-align: center; }
+.app-loading-card img { width: 46px; height: 46px; border-radius: 12px; }
+.app-loading-spinner { width: 24px; height: 24px; margin: 23px 0 19px; border: 2px solid #d8e3f2; border-top-color: #1767c4; border-radius: 50%; animation: app-loading-spin .8s linear infinite; }
+.app-loading-card h1 { margin: 0; color: #1d1d1f; font-size: 21px; font-weight: 650; letter-spacing: -.04em; }
+.app-loading-card p { margin: 8px 0 0; color: #6e6e73; font-size: 13px; line-height: 1.45; }
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .app-loading-spinner { animation: none; } }
