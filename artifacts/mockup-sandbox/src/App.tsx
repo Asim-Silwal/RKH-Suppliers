@@ -106,6 +106,13 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
+const entryLabel = (entry: Entry, party?: Party) => {
+  if (party?.partyType === "supplier") {
+    return entry.type === "PURCHASE" ? "Purchase" : "Payment made";
+  }
+  return entry.type === "PURCHASE" ? "Sale" : "Payment received";
+};
+
 const entryDescription = (entry: Entry) =>
   entry.description === "Payment received with purchase"
     ? "Payment received with sale"
@@ -515,7 +522,7 @@ function Table({
           </span>
 
           <span className={`type ${entry.type.toLowerCase()}`}>
-            {entry.type === "PURCHASE" ? "Sale" : "Payment"}
+            {entryLabel(entry, partyById.get(entry.partyId))}
           </span>
 
           <span>{entryDescription(entry) || "—"}</span>
@@ -551,38 +558,34 @@ function Dashboard({
   const periodEntries = period === "lifetime" ? entries : invalidRange ? [] : entries.filter(
     (entry) => entry.bs >= range.from && entry.bs <= range.to,
   );
-  const purchased = periodEntries
-    .filter((entry) => entry.type === "PURCHASE")
-    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-
-  const collected = periodEntries
-    .filter((entry) => entry.type === "PAYMENT")
-    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-  const lifetimePurchased = entries
-    .filter((entry) => entry.type === "PURCHASE")
-    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-  const lifetimeCollected = entries
-    .filter((entry) => entry.type === "PAYMENT")
-    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-  const totalActivityCents = toCents(lifetimePurchased) + toCents(lifetimeCollected);
-  const purchaseShare = totalActivityCents ? Math.round(toCents(lifetimePurchased) / totalActivityCents * 100) : 0;
-  const paymentShare = totalActivityCents ? 100 - purchaseShare : 0;
-  const periodBalances = balancesByParty(periodEntries);
+  const partyById = new Map(parties.map((party) => [party.id, party]));
+  const sum = (source: Entry[], predicate: (entry: Entry, party?: Party) => boolean) =>
+    source.reduce((total, entry) => predicate(entry, partyById.get(entry.partyId)) ? total + toCents(entry.amount) : total, 0) / 100;
+  const sales = sum(periodEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PURCHASE");
+  const purchases = sum(periodEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PURCHASE");
+  const collections = sum(periodEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PAYMENT");
+  const supplierPayments = sum(periodEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PAYMENT");
   const lifetimeBalances = balancesByParty(entries);
-  const outstanding = parties.reduce((total, party) => total + Math.max(0, periodBalances.get(party.id) ?? 0), 0) / 100;
-
-  const dueParties = parties
+  const receivables = parties
     .map((party) => ({ party, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 }))
-    .filter(({ balance }) => balance > 0)
+    .filter(({ party, balance }) => party.partyType === "customer" && balance > 0)
     .sort((a, b) => b.balance - a.balance);
+  const payables = parties
+    .map((party) => ({ party, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 }))
+    .filter(({ party, balance }) => party.partyType === "supplier" && balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+  const totalReceivables = receivables.reduce((total, item) => total + item.balance, 0);
+  const totalPayables = payables.reduce((total, item) => total + item.balance, 0);
+  const cashMovement = collections - supplierPayments;
   const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
+  const recentEntries = [...periodEntries].sort((a, b) => b.ad.localeCompare(a.ad)).slice(0, 6);
 
   return (
     <>
       <Header
         eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
-        description="Track sales, payments, and outstanding party balances in one place."
+        description="A clear view of revenue, spending, cash movement, and amounts due across the business."
         action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
@@ -613,58 +616,39 @@ function Dashboard({
 
       <section className="summary-grid">
         <div>
-          <span>Outstanding to collect</span>
-
-          <strong>
-            {money(outstanding)}
-          </strong>
-
-          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
+          <span>Sales</span>
+          <strong>{money(sales)}</strong>
+          <small>{periodName}</small>
         </div>
-
         <div>
-          <span>Payments recorded</span>
-
-          <strong>{money(collected)}</strong>
-
-          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
+          <span>Purchases</span>
+          <strong>{money(purchases)}</strong>
+          <small>{periodName}</small>
         </div>
-
         <div>
-          <span>Sales recorded</span>
-
-          <strong>{money(purchased)}</strong>
-
-          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
+          <span>Customer collections</span>
+          <strong>{money(collections)}</strong>
+          <small>{periodName}</small>
         </div>
-
         <div>
-          <span>Total parties</span>
-
-          <strong>{parties.length}</strong>
-
-          <small>In your directory</small>
+          <span>Supplier payments</span>
+          <strong>{money(supplierPayments)}</strong>
+          <small>{periodName}</small>
         </div>
-
       </section>
 
-      <section className="activity-card" aria-label="Ledger activity summary">
-        <div className="activity-copy">
-          <span className="eyebrow">AT A GLANCE</span>
-          <h2>Business activity</h2>
-          <p>Lifetime sales and payments across your full ledger.</p>
-          <div className="activity-legend">
-            <span><i className="legend-purchase" /> Sales <strong>{money(lifetimePurchased)}</strong><em>{purchaseShare}%</em></span>
-            <span><i className="legend-payment" /> Payments received <strong>{money(lifetimeCollected)}</strong><em>{paymentShare}%</em></span>
-          </div>
-        </div>
-        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Lifetime sales ${purchaseShare} percent; payments received ${paymentShare} percent` : "No sales or payments recorded"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(lifetimePurchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
-          <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "sales" : "no activity"}</small></div>
+      <section className="business-health" aria-label="Business health overview">
+        <div className="business-health-heading"><span className="eyebrow">BUSINESS POSITION</span><h2>What needs attention</h2><p>Balances are calculated from all recorded transactions.</p></div>
+        <div className="business-health-metrics">
+          <div><span>Customer receivables</span><strong>{money(totalReceivables)}</strong><small>{receivables.length} customer{receivables.length === 1 ? "" : "s"} with amounts due</small></div>
+          <div><span>Supplier payables</span><strong>{money(totalPayables)}</strong><small>{payables.length} supplier{payables.length === 1 ? "" : "s"} awaiting payment</small></div>
+          <div><span>Net cash movement</span><strong className={cashMovement < 0 ? "negative" : ""}>{cashMovement < 0 ? "−" : "+"}{money(Math.abs(cashMovement))}</strong><small>Customer collections less supplier payments · {periodName}</small></div>
+          <div><span>Active accounts</span><strong>{parties.length}</strong><small>{parties.filter((party) => party.partyType === "customer").length} customers · {parties.filter((party) => party.partyType === "supplier").length} suppliers</small></div>
         </div>
       </section>
 
       <div className="dashboard-columns">
-        <section className="reference-panel">
+        <section className="reference-panel dashboard-recent">
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
@@ -684,7 +668,7 @@ function Dashboard({
           </div>
 
           <Table
-            entries={entries.slice(0, 10)}
+            entries={recentEntries}
             parties={parties}
             emptyMessage="No transactions recorded yet."
           />
@@ -697,7 +681,7 @@ function Dashboard({
                 CURRENT BALANCES
               </span>
 
-              <h2>Outstanding balances</h2>
+              <h2>Customer receivables</h2>
             </div>
 
             {role === "admin" && <button
@@ -709,7 +693,7 @@ function Dashboard({
             </button>}
           </div>
 
-          {dueParties.map(({ party, balance }) => (
+          {receivables.slice(0, 6).map(({ party, balance }) => (
               role === "admin" ? <button
                 className="outstanding-row"
                 key={party.id}
@@ -730,9 +714,14 @@ function Dashboard({
                 <b>{money(balance)}</b>
               </div>
             ))}
-          {dueParties.length === 0 && (
-            <p className="empty-state">No outstanding balances.</p>
+          {receivables.length === 0 && (
+            <p className="empty-state">No customer balances are due.</p>
           )}
+        </section>
+        <section className="reference-panel dashboard-payables">
+          <div className="panel-heading"><div><span className="eyebrow">SUPPLIER OBLIGATIONS</span><h2>Supplier payables</h2></div></div>
+          {payables.slice(0, 6).map(({ party, balance }) => role === "admin" ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
+          {payables.length === 0 && <p className="empty-state">No supplier payments are due.</p>}
         </section>
       </div>
     </>
@@ -1092,6 +1081,10 @@ function AddEntry({
   const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
   const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
   const [activePartySuggestion, setActivePartySuggestion] = useState(0);
+  const selectedParty = parties.find((party) => party.id === form.partyId);
+  const isSupplier = selectedParty?.partyType === "supplier";
+  const primaryTransactionLabel = isSupplier ? "Purchase" : "Sale";
+  const paymentTransactionLabel = isSupplier ? "Payment made" : "Payment received";
   const partyMatches = [...(partyQuery.trim() ? matchingParties(parties, partyQuery) : parties)]
     .sort((a, b) => {
       const query = partyQuery.trim().toLowerCase();
@@ -1161,7 +1154,7 @@ function AddEntry({
     }
 
     if (invalidPaidNow) {
-      setError("Enter a partial payment greater than zero and less than the sale total.");
+      setError(`Enter a partial payment greater than zero and less than the ${primaryTransactionLabel.toLowerCase()} total.`);
       return;
     }
 
@@ -1194,7 +1187,7 @@ function AddEntry({
       <Header
         eyebrow="TRANSACTIONS / NEW"
         title="New transaction"
-        description="Record a sale, an immediate part payment, or a later payment. Party balances update automatically."
+        description="Record sales, purchases, customer collections, and supplier payments. Balances update automatically."
         action={() => go("transactions")}
         label="View transactions"
       />
@@ -1251,17 +1244,17 @@ function AddEntry({
               }}
             >
               <option value="PURCHASE">
-                Sale
+                {primaryTransactionLabel}
               </option>
 
               <option value="PAYMENT">
-                Payment received
+                {paymentTransactionLabel}
               </option>
             </select>
           </FormField>
 
           <div className="amount-column">
-            <FormField label={form.type === "PURCHASE" ? "Sale total (NPR) *" : "Payment amount (NPR) *"}>
+            <FormField label={form.type === "PURCHASE" ? `${primaryTransactionLabel} total (NPR) *` : "Payment amount (NPR) *"}>
               <input
                 required
                 type="text"
@@ -1284,10 +1277,10 @@ function AddEntry({
                       if (!event.target.checked) setForm({ ...form, paidNow: "" });
                     }}
                   />
-                  <span>Partially paid</span>
+                  <span>{isSupplier ? "Partially paid" : "Partially received"}</span>
                 </label>
                 {partiallyPaid && (
-                  <FormField label="Payment received now (NPR) *">
+                  <FormField label={`${paymentTransactionLabel} now (NPR) *`}>
                     <input
                       required
                       type="text"
@@ -1297,8 +1290,8 @@ function AddEntry({
                       onChange={(event) => setForm({ ...form, paidNow: event.target.value })}
                       placeholder="0.00"
                     />
-                    <small>Enter the amount received now. The rest stays outstanding.</small>
-                    {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the sale total.</small>}
+                    <small>{isSupplier ? "Enter the amount paid now. The remaining amount stays payable." : "Enter the amount received now. The remaining amount stays receivable."}</small>
+                    {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the {primaryTransactionLabel.toLowerCase()} total.</small>}
                   </FormField>
                 )}
               </>
@@ -1330,9 +1323,9 @@ function AddEntry({
 
         {form.type === "PURCHASE" && purchaseCents > 0 && (
           <div className="payment-preview" aria-live="polite">
-            <div><span>Sale total</span><strong>{money(purchaseCents / 100)}</strong></div>
-            <div><span>Paid now</span><strong>{money(paidNowCents / 100)}</strong></div>
-            <div><span>Remaining from this sale</span><strong>{money(remainingCents / 100)}</strong></div>
+            <div><span>{primaryTransactionLabel} total</span><strong>{money(purchaseCents / 100)}</strong></div>
+            <div><span>{isSupplier ? "Paid now" : "Received now"}</span><strong>{money(paidNowCents / 100)}</strong></div>
+            <div><span>Remaining from this {primaryTransactionLabel.toLowerCase()}</span><strong>{money(remainingCents / 100)}</strong></div>
           </div>
         )}
 
@@ -1346,7 +1339,7 @@ function AddEntry({
                   event.target.value,
               })
             }
-            placeholder="What was sold or paid?"
+            placeholder={isSupplier ? "What was purchased or paid?" : "What was sold or received?"}
           />
         </FormField>
 
@@ -2573,6 +2566,8 @@ export default function App() {
   const addEntry = async (
     entry: Omit<Entry, "id"> & { paidNow?: number },
   ): Promise<boolean> => {
+    const party = parties.find((item) => item.id === entry.partyId);
+    const supplierEntry = party?.partyType === "supplier";
     const amountCents = toCents(entry.amount);
     const paidNowCents = toCents(entry.paidNow ?? 0);
     const paidNow = paidNowCents / 100;
@@ -2603,7 +2598,7 @@ export default function App() {
         amount: paidNow.toFixed(2),
         date_ad: entry.ad,
         date_bs: entry.bs,
-        description: "Payment received with sale",
+        description: supplierEntry ? "Payment made with purchase" : "Payment received with sale",
       });
     }
 
@@ -2642,11 +2637,13 @@ export default function App() {
     }
 
     const name = partyName(parties, entry.partyId);
+    const primaryLabel = supplierEntry ? "Purchase" : "Sale";
+    const paymentLabel = supplierEntry ? "Payment made" : "Payment received";
     if (entry.type === "PURCHASE" && paidNow > 0) {
-      showNotice("Sale and payment recorded", `${money(paidNow)} paid now · ${money(entry.amount - paidNow)} remaining for ${name}`);
+      showNotice(`${primaryLabel} and payment recorded`, `${money(paidNow)} paid now · ${money(entry.amount - paidNow)} remaining for ${name}`);
     } else {
       showNotice(
-        entry.type === "PAYMENT" ? "Payment received" : "Sale recorded",
+        entry.type === "PAYMENT" ? paymentLabel : `${primaryLabel} recorded`,
         `${money(entry.amount)} · ${name}`,
       );
     }
@@ -2855,7 +2852,7 @@ export default function App() {
 
   return (
     <>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + Math.max(0, lifetimeBalances.get(party.id) ?? 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />

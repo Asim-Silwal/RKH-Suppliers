@@ -61,7 +61,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .legend-purchase { background: #26272b; }
 .legend-payment { background: #afb0b7; }
 .activity-chart small { color: #8b8b93; }
-.dashboard-columns { gap: 18px; }
+.dashboard-columns { gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.business-health { margin: 0 0 18px; padding: 28px 30px; border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
+.business-health-heading h2 { margin: 7px 0 4px; color: #202126; font-size: 22px; letter-spacing: -.035em; }
+.business-health-heading p { margin: 0; color: #85858d; font-size: 12px; }
+.business-health-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 24px; }
+.business-health-metrics > div { min-width: 0; padding: 16px; border: 1px solid #ececf0; border-radius: 12px; background: #fafafb; }
+.business-health-metrics span { display: block; color: #676873; font-size: 12px; font-weight: 550; }
+.business-health-metrics strong { display: block; margin-top: 15px; color: #24252a; font-size: clamp(19px, 1.65vw, 26px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; white-space: nowrap; }
+.business-health-metrics strong.negative { color: #a35252; }
+.business-health-metrics small { display: block; min-height: 29px; margin-top: 6px; color: #909099; font-size: 10px; line-height: 1.4; }
+.dashboard-recent { grid-column: 1 / -1; }
 .panel-heading { padding: 23px 25px 18px; }
 .party-export-button { flex: 0 0 auto; }
 .party-export-error { margin: 0; padding: 10px 24px; border-top: 1px solid #f1dddd; color: #a23a3a; font-size: 12px; }
@@ -337,6 +347,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .party-suggestions { top: calc(100% + 11px); left: -10px; width: calc(100% + 20px); }
   .form-panel { padding: 20px 17px; }
   .form-actions { flex-wrap: wrap; }
+}
+@media (max-width: 900px) {
+  .business-health-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .business-health { margin-bottom: 14px; padding: 22px 17px; }
+  .business-health-heading h2 { font-size: 20px; }
+  .business-health-metrics { gap: 9px; margin-top: 19px; }
+  .business-health-metrics > div { padding: 13px; }
+  .business-health-metrics strong { margin-top: 12px; font-size: clamp(17px, 4.4vw, 22px); white-space: normal; }
+  .business-health-metrics small { min-height: 42px; font-size: 9px; }
+  .dashboard-recent { grid-column: auto; }
 }
 @media (max-width: 380px) {
   .activity-card { flex-direction: column; align-items: stretch; }
