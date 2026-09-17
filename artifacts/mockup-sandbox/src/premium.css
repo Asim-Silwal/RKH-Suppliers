@@ -242,6 +242,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .form-panel { max-width: 880px; padding: 32px; }
 .form-panel > label, .form-grid label, .form-grid .form-field { color: #515159; }
 .form-panel input, .form-panel select, .form-panel textarea, .bs-date-trigger { border-color: #d9d9de; border-radius: 10px; color: #242428; }
+.party-form .form-grid > label:nth-child(1) { order: 5; }
+.party-form .form-grid > label:nth-child(2) { order: 1; }
+.party-form .form-grid > label:nth-child(3) { order: 2; }
+.party-form .form-grid > label:nth-child(4) { order: 3; }
+.party-form .form-grid > label:nth-child(5) { order: 4; }
+.form-error { margin: 14px 0 0; padding: 11px 13px; border: 1px solid #efc8c4; border-radius: 10px; background: #fff6f5; color: #9b3f38; font-size: 12px; line-height: 1.4; animation: form-error-enter .3s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes form-error-enter { 0% { opacity: 0; transform: translateY(-5px); } 55% { transform: translateY(2px); } 75% { transform: translateX(-3px); } 100% { opacity: 1; transform: translateX(0) translateY(0); } }
 .form-panel input:focus, .form-panel select:focus, .form-panel textarea:focus, .bs-date-trigger:hover { border-color: #8f8f98; }
 .form-panel small, .form-field small { color: #888890; }
 .form-grid .partial-toggle, .form-grid .partial-toggle:has(input:checked) { border-color: #dedee3; background: #f7f7f8; color: #333339; }

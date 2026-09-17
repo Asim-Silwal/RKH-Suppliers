@@ -1100,7 +1100,7 @@ function AddParty({
       />
 
       <form
-        className="form-panel"
+        className="form-panel party-form"
         onSubmit={submit}
       >
         <h2>Party information</h2>
@@ -1112,7 +1112,7 @@ function AddParty({
               <option value="supplier">Supplier</option>
             </select>
           </FormField>
-          <FormField label="Name *">
+          <FormField label="Party name *">
             <input
               required
               value={form.name}
@@ -1182,7 +1182,7 @@ function AddParty({
         </FormField>
 
         {error && (
-          <p className="form-error">{error}</p>
+          <p className="form-error" role="alert">{error}</p>
         )}
 
         <div className="form-actions">
@@ -1790,7 +1790,7 @@ function EditParty({
       />
 
       <form
-        className="form-panel"
+        className="form-panel party-form"
         onSubmit={submit}
       >
         <h2>Party information</h2>
@@ -1802,7 +1802,7 @@ function EditParty({
               <option value="supplier">Supplier</option>
             </select>
           </FormField>
-          <FormField label="Name *">
+          <FormField label="Party name *">
             <input
               required
               value={form.name}
@@ -1879,7 +1879,7 @@ function EditParty({
         </FormField>
 
         {error && (
-          <p className="form-error">{error}</p>
+          <p className="form-error" role="alert">{error}</p>
         )}
 
         <div className="form-actions">
@@ -2595,6 +2595,7 @@ export default function App() {
 
     if (error) {
       console.error(error);
+      showNotice("Could not save party", error.message || "Please try again.", "error");
 
       return false;
     }
@@ -2661,6 +2662,7 @@ export default function App() {
 
     if (error) {
       console.error(error);
+      showNotice("Could not update party", error.message || "Please try again.", "error");
 
       return false;
     }
