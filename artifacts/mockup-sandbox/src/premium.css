@@ -726,8 +726,7 @@ body, .reference-app { background: #f5f5f7; }
 
 /* Compact transaction editing stays within the existing amount cell. */
 .ledger-row strong { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
-.transaction-edit-icon { display: inline-grid; place-items: center; width: 27px; height: 27px; padding: 0; border: 1px solid #d8dee8; border-radius: 50%; background: #fff; color: #3970b6; opacity: 0; transition: opacity .16s ease, background-color .16s ease, border-color .16s ease; }
-.ledger-row:hover .transaction-edit-icon, .transaction-edit-icon:focus-visible { opacity: 1; }
+.transaction-edit-icon { display: inline-grid; place-items: center; width: 27px; height: 27px; padding: 0; border: 1px solid #d8dee8; border-radius: 50%; background: #fff; color: #3970b6; opacity: 1; transition: background-color .16s ease, border-color .16s ease, transform .16s ease; }
 .transaction-edit-icon:hover { border-color: #a9c4e5; background: #edf5ff; }
 .transaction-edit-backdrop { background: rgba(20, 29, 42, .22); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 .transaction-edit-modal { width: min(580px, calc(100vw - 32px)); }
