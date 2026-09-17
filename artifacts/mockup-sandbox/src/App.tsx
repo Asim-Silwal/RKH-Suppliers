@@ -123,6 +123,8 @@ const findPartyByRoute = (parties: Party[], segment: string) =>
 const matchingParties = (parties: Party[], query: string) =>
   parties.filter((party) => `${party.name} ${party.company ?? ""} ${party.contact ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
 
+const partyPhoneIsValid = (contact: string) => !contact.trim() || /^\d{10}$/.test(contact.trim());
+
 const balanceOf = (entries: Entry[], partyId: string) =>
   entries
     .filter((entry) => entry.partyId === partyId)
@@ -887,6 +889,11 @@ function AddParty({
       return;
     }
 
+    if (!partyPhoneIsValid(form.contact)) {
+      setError("Contact number must be exactly 10 digits.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -948,14 +955,19 @@ function AddParty({
 
           <FormField label="Contact number">
             <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={form.contact}
               onChange={(event) =>
                 setForm({
                   ...form,
-                  contact: event.target.value,
+                  contact: event.target.value.replace(/\D/g, "").slice(0, 10),
                 })
               }
+              placeholder="10-digit phone number"
             />
+            <small>Enter exactly 10 digits if adding a contact number.</small>
           </FormField>
 
           <FormField label="Location">
@@ -1547,6 +1559,11 @@ function EditParty({
       return;
     }
 
+    if (!partyPhoneIsValid(form.contact ?? "")) {
+      setError("Contact number must be exactly 10 digits.");
+      return;
+    }
+
     setSaving(true);
     setError("");
 
@@ -1613,6 +1630,9 @@ function EditParty({
 
           <FormField label="Contact number">
             <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
               value={
                 form.contact || ""
               }
@@ -1620,10 +1640,12 @@ function EditParty({
                 setForm({
                   ...form,
                   contact:
-                    event.target.value,
+                    event.target.value.replace(/\D/g, "").slice(0, 10),
                 })
               }
+              placeholder="10-digit phone number"
             />
+            <small>Enter exactly 10 digits if adding a contact number.</small>
           </FormField>
 
           <FormField label="Location">
