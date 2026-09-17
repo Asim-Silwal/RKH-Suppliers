@@ -659,7 +659,7 @@ body, .reference-app { background: #f5f5f7; }
 }
 
 /* Destructive actions stay clear without obscuring the account underneath. */
-.delete-confirm-backdrop { background: rgba(20, 29, 42, .16); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
+.delete-confirm-backdrop { inset: 0 0 0 246px; background: rgba(20, 29, 42, .18); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 .delete-confirm-dialog { width: min(390px, calc(100vw - 40px)); padding: 24px; border: 1px solid #e2e6ed; border-radius: 16px; box-shadow: 0 20px 52px rgba(25, 35, 50, .18); }
 .delete-confirm-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 9px; }
 .delete-confirm-heading > span { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 50%; background: #fff0f0; color: #bb3939; }
@@ -670,7 +670,8 @@ body, .reference-app { background: #f5f5f7; }
 .delete-confirm-actions .outline-button { border-color: #dce1e9; color: #4a5260; }
 .delete-confirm-actions .delete-button { border-color: #bc4242; background: #bc4242; color: #fff; box-shadow: 0 6px 16px rgba(188, 66, 66, .18); }
 .delete-confirm-actions .delete-button:hover { border-color: #a93434; background: #a93434; color: #fff; }
-@media (max-width: 600px) { .delete-confirm-dialog { width: min(390px, calc(100vw - 28px)); padding: 21px; } .delete-confirm-dialog > p { margin-left: 0; } }
+@media (max-width: 850px) { .delete-confirm-backdrop { left: 210px; } }
+@media (max-width: 600px) { .delete-confirm-backdrop { inset: 0; } .delete-confirm-dialog { width: min(390px, calc(100vw - 28px)); padding: 21px; } .delete-confirm-dialog > p { margin-left: 0; } }
 
 /* Account sign-in: quiet, centered, and deliberately focused. */
 .login-page { min-height: 100dvh; padding: 32px 20px; background: #f5f5f7; }

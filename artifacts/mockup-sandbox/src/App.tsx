@@ -27,6 +27,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 
 import { supabase } from "./lib/supabase";
 import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
@@ -2180,7 +2181,7 @@ function PartyDetail({
           })}
         />
       </section>
-      {confirmingDelete && (
+      {confirmingDelete && createPortal(
         <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
           <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
             <div className="delete-confirm-heading"><span aria-hidden="true"><Trash2 size={18} /></span><div><p className="delete-confirm-kicker">Permanent action</p><h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2></div></div>
@@ -2193,7 +2194,7 @@ function PartyDetail({
             </div>
           </section>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }
