@@ -222,7 +222,7 @@ function Shell({
   profile: UserProfile;
   avatarUrl: string | null;
   onSaveProfile: (fullName: string, contact: string, photo: File | null) => Promise<string | null>;
-  snapshot: { outstanding: number; partyCount: number; todayBs: string };
+  snapshot: { outstanding: number; payable: number; partyCount: number; todayBs: string };
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -288,8 +288,10 @@ function Shell({
 
         <footer className="sidebar-snapshot">
           <span className="sidebar-snapshot-heading">LEDGER AT A GLANCE</span>
-          <strong>{money(snapshot.outstanding)}</strong>
-          <small>Lifetime outstanding to collect</small>
+          <div className="sidebar-balance-summary">
+            <div><span>To collect</span><strong>{money(snapshot.outstanding)}</strong><small>Lifetime customer payments due</small></div>
+            <div><span>To pay</span><strong>{money(snapshot.payable)}</strong><small>Lifetime supplier payments due</small></div>
+          </div>
           <div className="sidebar-snapshot-meta">
             <span>{snapshot.partyCount} {snapshot.partyCount === 1 ? "party" : "parties"}</span>
             <span>{snapshot.todayBs} BS</span>
@@ -2998,7 +3000,7 @@ export default function App() {
 
   return (
     <>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />

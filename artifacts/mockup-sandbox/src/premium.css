@@ -17,6 +17,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .reference-sidebar footer small { color: #77777e; }
 .reference-sidebar .sidebar-snapshot { margin-top: auto; padding: 19px 13px 13px; border-top: 1px solid #d9dfe9; }
 .sidebar-snapshot-heading { margin-bottom: 16px; color: #77869a !important; font-size: 9px !important; font-weight: 700; letter-spacing: .12em !important; }
+.sidebar-balance-summary { display: grid; gap: 14px; }
+.sidebar-balance-summary > div { display: grid; gap: 4px; }
+.sidebar-balance-summary span { color: #65758a; font-size: 10px; font-weight: 650; }
+.sidebar-balance-summary strong { color: #233d64; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
+.sidebar-balance-summary small { color: #68798f; font-size: 10px; }
 .sidebar-snapshot > strong { display: block; color: #233d64; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
 .sidebar-snapshot > small { display: block; margin-top: 4px; color: #68798f !important; font-size: 11px; }
 .sidebar-snapshot-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 17px; padding-top: 12px; border-top: 1px solid #dfe5ee; }
@@ -315,6 +320,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .reference-sidebar nav button { min-height: 38px; padding: 9px 11px; }
   .reference-sidebar .sidebar-snapshot { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px; margin-top: 12px; padding: 12px 2px 0; }
   .sidebar-snapshot-heading { grid-column: 1 / -1; margin-bottom: 3px; }
+  .sidebar-balance-summary { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; width: 100%; }
+  .sidebar-balance-summary strong { font-size: 15px; }
   .sidebar-snapshot > strong { font-size: 16px; }
   .sidebar-snapshot > small { margin: 0; text-align: right; }
   .sidebar-snapshot-meta { grid-column: 1 / -1; justify-content: flex-start; gap: 15px; margin-top: 7px; padding-top: 0; border-top: 0; }
