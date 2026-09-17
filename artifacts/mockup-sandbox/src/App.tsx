@@ -18,6 +18,7 @@ import {
   FileText,
   ImagePlus,
   LayoutDashboard,
+  Landmark,
   LogOut,
   MapPin,
   Pencil,
@@ -33,15 +34,20 @@ import { createPortal } from "react-dom";
 import { supabase } from "./lib/supabase";
 import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
 import { EnglishDatePicker } from "./components/EnglishDatePicker";
+import { SahakariPage, SahakariProvider } from "./components/Sahakari";
+import { UserManagement, type UserRole, type Permission } from "./components/UserManagement";
+import { StaffOverview } from "./components/StaffOverview";
 import NepaliDate from "nepali-date-converter";
 import ledgerMark from "./assets/rkh-ledger-mark.svg";
 import statementFontUrl from "./assets/NotoSansDevanagariUI-Regular.ttf?url";
 
 type EntryType = "PURCHASE" | "PAYMENT";
-type UserRole = "admin" | "staff";
 type UserProfile = {
   userId: string;
   role: UserRole;
+  roleName: string;
+  permissions: Permission[];
+  isOwner: boolean;
   email: string;
   fullName: string;
   contact: string;
@@ -263,15 +269,16 @@ function Shell({
       document.removeEventListener("keydown", escape);
     };
   }, [menuOpen]);
-  const links = role === "admin" ? [
+  const links = role === "staff" ? [
+    ["dashboard", "Balances", LayoutDashboard],
+  ] as const : [
     ["dashboard", "Dashboard", LayoutDashboard],
     ["parties", "Parties", UsersRound],
     ["add-entry", "Transactions", Plus],
     ["transactions", "Statement", FileText],
     ["reports", "Reports", BarChart3],
-  ] as const : [
-    ["dashboard", "Dashboard", LayoutDashboard],
-    ["transactions", "Statement", FileText],
+    ["sahakari", "Sahakari", Landmark],
+    ...(profile.isOwner ? [["users", "Users", UsersRound] as const] : []),
   ] as const;
 
   return (
@@ -307,7 +314,7 @@ function Shell({
           ))}
         </nav>
 
-        <footer className="sidebar-snapshot">
+        {role !== "staff" && <footer className="sidebar-snapshot">
           <span className="sidebar-snapshot-heading">LEDGER AT A GLANCE</span>
           <div className="sidebar-balance-summary">
             <div><span>To collect</span><strong>{money(snapshot.outstanding)}</strong><small>Lifetime customer payments due</small></div>
@@ -317,7 +324,7 @@ function Shell({
             <span>{snapshot.partyCount} {snapshot.partyCount === 1 ? "party" : "parties"}</span>
             <span>{snapshot.todayBs} BS</span>
           </div>
-        </footer>
+        </footer>}
       </aside>
 
       <main className={`reference-main${active === "dashboard" ? " dashboard-main" : ""}`}>
@@ -330,7 +337,7 @@ function Shell({
           </button>
           {menuOpen && <div className="profile-menu">
             <div className="profile-menu-person"><ProfileAvatar profile={profile} avatarUrl={avatarUrl} /><div><strong>{profile.fullName || "Your profile"}</strong><small>{profile.email}</small></div></div>
-            <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{role === "admin" ? "Admin" : "Staff"}</dd></div></dl>
+            <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{profile.roleName}</dd></div></dl>
             <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
@@ -448,7 +455,7 @@ function EditProfile({ profile, avatarUrl, onClose, onSave }: {
         <label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} maxLength={120} disabled={saving} /></label>
         <label>Contact number<input value={contact} onChange={(event) => setContact(event.target.value)} type="tel" maxLength={40} disabled={saving} /></label>
         <label>Email<input value={profile.email} readOnly aria-readonly="true" /></label>
-        <p className="profile-role-note">Role: {profile.role === "admin" ? "Admin" : "Staff"}</p>
+        <p className="profile-role-note">Role: {profile.roleName}</p>
         {error && <p className="profile-form-error" role="alert">{error}</p>}
         <div className="profile-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : "Save profile"}</button></div>
       </form>
@@ -621,7 +628,7 @@ function Dashboard({
         eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
         description="A clear view of revenue, spending, cash movement, and amounts due across the business."
-        action={role === "admin" ? () => go("add-entry") : undefined}
+        action={role !== "staff" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -747,7 +754,7 @@ function Dashboard({
               <h2>Customers who need to pay</h2>
             </div>
 
-            {role === "admin" && <button
+            {role !== "staff" && <button
                className="text-link"
                onClick={() => go("parties")}
             >
@@ -757,7 +764,7 @@ function Dashboard({
           </div>
 
           {receivables.slice(0, 6).map(({ party, balance }) => (
-              role === "admin" ? <button
+              role !== "staff" ? <button
                 className="outstanding-row"
                 key={party.id}
                 onClick={() =>
@@ -783,7 +790,7 @@ function Dashboard({
         </section>
         <section className="reference-panel dashboard-payables">
           <div className="panel-heading"><div><span className="eyebrow">MONEY TO PAY</span><h2>Suppliers you need to pay</h2></div></div>
-          {payables.slice(0, 6).map(({ party, balance }) => role === "admin" ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
+          {payables.slice(0, 6).map(({ party, balance }) => role !== "staff" ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
           {payables.length === 0 && <p className="empty-state">No supplier payments are due.</p>}
         </section>
       </div>
@@ -1696,7 +1703,7 @@ function Transactions({
         eyebrow="LEDGER / STATEMENT"
         title="Statement"
         description="Review sales and payments. Filter the list or export the current results."
-        action={role === "admin" ? () => go("add-entry") : undefined}
+        action={role !== "staff" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -2004,6 +2011,7 @@ function PartyDetail({
   remove,
   deleteTransactions,
   updateTransaction,
+  allowDelete,
 }: {
   party: Party;
   allParties: Party[];
@@ -2012,6 +2020,7 @@ function PartyDetail({
   remove: () => void;
   deleteTransactions: (ids: string[]) => Promise<string[]>;
   updateTransaction: (entry: Entry) => Promise<boolean>;
+  allowDelete: boolean;
 }) {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
@@ -2113,10 +2122,10 @@ function PartyDetail({
         </button>
         <div className="party-actions">
           <button className="outline-button" onClick={edit}>Edit party</button>
-          <button className="delete-button" onClick={() => setConfirmingDelete("party")}>
+          {allowDelete && <button className="delete-button" onClick={() => setConfirmingDelete("party")}>
             <Trash2 size={14} />
             Delete party
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -2187,7 +2196,7 @@ function PartyDetail({
         </div>
         {exportError && <p className="party-export-error" role="alert">{exportError}</p>}
 
-        {selectedTransactions.length > 0 && (
+        {allowDelete && selectedTransactions.length > 0 && (
           <div className="selected-transaction-bar">
             <span>{selectedTransactions.length} transaction{selectedTransactions.length === 1 ? "" : "s"} selected</span>
             <div className="selected-transaction-actions">
@@ -2208,17 +2217,17 @@ function PartyDetail({
           emptyMessage="No transactions for this party yet."
           selectedIds={selectedTransactionIds}
           selectionDisabled={deletingTransaction}
-          onSelect={(entry) => setSelectedTransactionIds((current) => {
+          onSelect={allowDelete ? (entry) => setSelectedTransactionIds((current) => {
             const next = new Set(current);
             if (next.has(entry.id)) next.delete(entry.id);
             else next.add(entry.id);
             return next;
-          })}
+          }) : undefined}
           onEdit={setEditingTransaction}
         />
       </section>
       {editingTransaction && <EditTransaction entry={editingTransaction} party={party} onClose={() => setEditingTransaction(null)} onSave={async (next) => { const success = await updateTransaction(next); if (success) setEditingTransaction(null); return success; }} />}
-      {confirmingDelete && createPortal(
+      {allowDelete && confirmingDelete && createPortal(
         <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
           <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
             <div className="delete-confirm-heading"><span aria-hidden="true"><Trash2 size={18} /></span><div><p className="delete-confirm-kicker">Permanent action</p><h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2></div></div>
@@ -2381,8 +2390,10 @@ export default function App() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [roleError, setRoleError] = useState("");
   const role = profile?.userId === authUserId ? profile.role : null;
-  const restrictedRoute = role === "staff" &&
-    ["parties", "add-party", "edit-party", "add-entry", "reports"].includes(current.path);
+  const restrictedRoute = Boolean(role && (
+    (role === "staff" && current.path !== "dashboard") ||
+    (current.path === "users" && !profile?.isOwner)
+  ));
 
   const [parties, setParties] =
     useState<Party[]>([]);
@@ -2488,14 +2499,27 @@ export default function App() {
         .eq("id", user.id)
         .single();
       if (cancelled) return;
-      if (error || (data?.role !== "admin" && data?.role !== "staff")) {
+      if (error || !data?.role) {
         setRoleError(error?.message ?? "Your account has no valid access role.");
+        return;
+      }
+
+      const [roleResult, ownerResult] = await Promise.all([
+        supabase.from("app_roles").select("name, permissions").eq("role_key", data.role).single(),
+        supabase.rpc("is_app_owner"),
+      ]);
+      if (cancelled) return;
+      if (roleResult.error || ownerResult.error || !roleResult.data) {
+        setRoleError(roleResult.error?.message ?? ownerResult.error?.message ?? "Could not load access permissions.");
         return;
       }
 
       setProfile({
         userId: user.id,
         role: data.role as UserRole,
+        roleName: roleResult.data.name,
+        permissions: roleResult.data.permissions as Permission[],
+        isOwner: ownerResult.data === true,
         email: user.email ?? "",
         fullName: data.full_name ?? "",
         contact: data.contact ?? "",
@@ -2533,6 +2557,12 @@ export default function App() {
   const loadData = async () => {
     setLoadingData(true);
     setDataError("");
+    if (profile?.role === "staff") {
+      setParties([]);
+      setEntries([]);
+      setLoadingData(false);
+      return;
+    }
 
     const [
       partyResult,
@@ -2619,7 +2649,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (authenticated) {
+    if (authenticated && profile) {
       loadData();
     } else if (
       authenticated === false
@@ -2627,7 +2657,7 @@ export default function App() {
       setParties([]);
       setEntries([]);
     }
-  }, [authenticated]);
+  }, [authenticated, profile?.userId, profile?.role]);
 
   /* ADD PARTY */
 
@@ -3007,12 +3037,8 @@ export default function App() {
 
   /* ROUTES */
 
-  let page: ReactNode = (
-    <Dashboard
-      parties={parties}
-      entries={entries}
-      role={role}
-    />
+  let page: ReactNode = role === "staff" ? <StaffOverview /> : (
+    <Dashboard parties={parties} entries={entries} role={role} />
   );
 
   if (restrictedRoute) {
@@ -3039,6 +3065,7 @@ export default function App() {
           }
           deleteTransactions={deleteTransactions}
           updateTransaction={updateTransaction}
+          allowDelete={role === "admin"}
         />
       );
     }
@@ -3098,16 +3125,22 @@ export default function App() {
     );
   } else if (current.path === "reports") {
     page = <Reports parties={parties} entries={entries} />;
+  } else if (current.path === "sahakari") {
+    page = <SahakariPage />;
+  } else if (current.path === "users" && profile.isOwner) {
+    page = <UserManagement currentUserId={profile.userId} />;
   }
 
   const lifetimeBalances = balancesByParty(entries);
 
   return (
     <>
+    {role !== "staff" ? <SahakariProvider key={profile.userId} userId={profile.userId} allowEdit={profile.permissions.includes("sahakari_edit")}>
       <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
+    </SahakariProvider> : <Shell active="dashboard" contentKey="staff-dashboard" onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: 0, payable: 0, partyCount: 0, todayBs: todayDates().bs }}>{page}</Shell>}
     </>
   );
 }

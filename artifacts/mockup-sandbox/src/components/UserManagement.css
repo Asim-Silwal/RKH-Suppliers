@@ -1,0 +1,18 @@
+.user-management { display: grid; gap: 20px; }
+.user-management-panel { display: grid; gap: 20px; padding: 24px; }
+.user-panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.user-panel-heading h2 { margin: 0; font-size: 19px; }
+.user-panel-heading > span { color: #737983; font-size: 12px; }
+.user-list { display: grid; }
+.user-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 0; border-top: 1px solid #e9e9ee; }
+.user-row > div { display: grid; gap: 4px; min-width: 0; }
+.user-row strong { overflow-wrap: anywhere; }
+.user-row small { color: #74747c; }
+.user-row label { display: grid; gap: 5px; color: #65656c; font-size: 11px; }
+.user-row select { min-width: 135px; min-height: 38px; padding: 7px 9px; border: 1px solid #d9d9de; border-radius: 7px; background: #fff; color: #242428; }
+.user-role-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.user-role-card { padding: 18px; border: 1px solid #e3e3e8; border-radius: 12px; }
+.user-role-card strong { font-size: 15px; }
+.user-role-card ul { padding-left: 18px; margin: 12px 0 0; color: #555761; font-size: 12px; line-height: 1.7; }
+@media (max-width: 850px) { .user-role-list { grid-template-columns: 1fr; } }
+@media (max-width: 550px) { .user-management-panel { padding: 17px; }.user-row { align-items: flex-start; flex-direction: column; }.user-row label, .user-row select { width: 100%; } }

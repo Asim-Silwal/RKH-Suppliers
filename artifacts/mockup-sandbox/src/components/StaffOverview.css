@@ -1,0 +1,10 @@
+.staff-overview { display: grid; gap: 20px; }
+.staff-balance-total { display: grid; gap: 8px; padding: 25px; }
+.staff-balance-total span { color: #75757d; font-size: 13px; }
+.staff-balance-total strong { font-size: 28px; }
+.staff-balance-list { padding: 20px 25px; }
+.staff-balance-list h2 { margin: 0 0 15px; font-size: 18px; }
+.staff-balance-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid #ececf0; font-size: 13px; }
+.staff-balance-list > div strong { white-space: nowrap; }
+.staff-balance-list p { color: #75757d; }
+.staff-balance-state { padding: 25px; }
