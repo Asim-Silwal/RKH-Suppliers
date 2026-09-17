@@ -104,6 +104,23 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+async function downloadPdf(filename: string, bytes: Uint8Array) {
+  const file = new File([bytes], filename, { type: "application/pdf" });
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: filename });
+    return;
+  }
+
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
@@ -1240,8 +1257,9 @@ function AddEntry({
     .slice(0, 6);
   const showPartySuggestions = partySuggestionsOpen && !(form.partyId && partyQuery === parties.find((party) => party.id === form.partyId)?.name);
   const chooseParty = (party: Party) => {
-    setForm((current) => ({ ...current, partyId: party.id }));
+    setForm((current) => ({ ...current, partyId: party.id, type: "PURCHASE", paidNow: "" }));
     setPartyQuery(party.name);
+    setPartiallyPaid(false);
     setPartySuggestionsOpen(false);
     setActivePartySuggestion(0);
     setError("");
@@ -1344,6 +1362,10 @@ function AddEntry({
       >
         <h2>Transaction details</h2>
 
+        <div className={`entry-context${selectedParty ? ` ${selectedParty.partyType}` : ""}`}>
+          {selectedParty ? <><strong>{selectedParty.partyType === "supplier" ? "Supplier selected" : "Customer selected"}</strong><span>{selectedParty.partyType === "supplier" ? "Record a purchase or payment made to this supplier." : "Record a sale or payment received from this customer."}</span></> : <><strong>Select a party first</strong><span>Choose a customer to record a sale, or a supplier to record a purchase.</span></>}
+        </div>
+
         {parties.length === 0 && (
           <div className="form-notice">
             Add a party before recording a transaction.
@@ -1376,6 +1398,7 @@ function AddEntry({
                   if (event.key === "Enter") { event.preventDefault(); chooseParty(partyMatches[activePartySuggestion]); }
                 }}
               />
+              <small className="entry-party-help">Supplier = purchase and payment made · Customer = sale and payment received</small>
               {partyQuery && <button type="button" className="party-search-clear" aria-label="Clear selected party" onClick={() => { setPartyQuery(""); setForm((current) => ({ ...current, partyId: "" })); setActivePartySuggestion(0); setPartySuggestionsOpen(true); document.getElementById("entry-party-search")?.focus(); }}><X size={15} /></button>}
               {showPartySuggestions && <PartySuggestions id="entry-party-suggestions" parties={partyMatches} active={activePartySuggestion} onSelect={chooseParty} emptyMessage="No matching parties. Try a different name or phone number." />}
             </div>
@@ -1384,6 +1407,7 @@ function AddEntry({
           <FormField label="Transaction type *">
             <select
               value={form.type}
+              disabled={!selectedParty}
               onChange={(event) => {
                 setForm({ ...form, type: event.target.value as EntryType, paidNow: "" });
                 setPartiallyPaid(false);
@@ -1949,15 +1973,10 @@ function PartyDetail({
       ]);
       if (!fontResponse.ok) throw new Error("Could not load the statement font.");
       const pdf = await createPartyStatementPdf(party, rows, new Uint8Array(await fontResponse.arrayBuffer()));
-      const url = URL.createObjectURL(new Blob([new Uint8Array(pdf)], { type: "application/pdf" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${party.name.trim().replace(/[\\/:*?"<>|]/g, "-") || "customer"}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const filename = `${party.name.trim().replace(/[\\/:*?"<>|]/g, "-") || "customer"}.pdf`;
+      await downloadPdf(filename, new Uint8Array(pdf));
     } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
       console.error(cause);
       setExportError("Could not create the PDF statement. Please try again.");
     } finally {
