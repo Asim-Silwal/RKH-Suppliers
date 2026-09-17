@@ -776,55 +776,100 @@ function Reports({ parties, entries }: { parties: Party[]; entries: Entry[] }) {
   const invalidRange = period === "custom" && range.from > range.to;
   const reportEntries = period === "lifetime" ? entries : invalidRange ? [] : entries.filter((entry) => entry.bs >= range.from && entry.bs <= range.to);
   const partyById = new Map(parties.map((party) => [party.id, party]));
-  const total = (source: Entry[], check: (entry: Entry, party?: Party) => boolean) => source.reduce((sum, entry) => check(entry, partyById.get(entry.partyId)) ? sum + toCents(entry.amount) : sum, 0) / 100;
-  const sales = total(reportEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PURCHASE");
-  const purchases = total(reportEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PURCHASE");
-  const collections = total(reportEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PAYMENT");
-  const payments = total(reportEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PAYMENT");
+  const customerSales = reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType !== "supplier" && entry.type === "PURCHASE");
+  const supplierPurchases = reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType === "supplier" && entry.type === "PURCHASE");
+  const customerPayments = reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType !== "supplier" && entry.type === "PAYMENT");
+  const supplierPayments = reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType === "supplier" && entry.type === "PAYMENT");
+  const sumAmount = (source: Entry[]) => source.reduce((sum, entry) => sum + entry.amount, 0);
+  const sales = sumAmount(customerSales);
+  const purchases = sumAmount(supplierPurchases);
+  const collections = sumAmount(customerPayments);
+  const payments = sumAmount(supplierPayments);
   const lifetimeBalances = balancesByParty(entries);
   const accountRows = parties.map((party) => {
     const partyEntries = reportEntries.filter((entry) => entry.partyId === party.id);
     const value = partyEntries.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + entry.amount, 0);
     const paid = partyEntries.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + entry.amount, 0);
-    return { party, value, paid, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 };
+    const transactionCount = partyEntries.length;
+    const primaryCount = partyEntries.filter((entry) => entry.type === "PURCHASE").length;
+    return { party, value, paid, transactionCount, averageValue: primaryCount ? value / primaryCount : 0, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 };
   });
-  const customers = accountRows.filter((row) => row.party.partyType === "customer").sort((a, b) => b.value - a.value || b.balance - a.balance);
-  const suppliers = accountRows.filter((row) => row.party.partyType === "supplier").sort((a, b) => b.value - a.value || b.balance - a.balance);
+  const customers = accountRows.filter((row) => row.party.partyType === "customer" && row.transactionCount > 0).sort((a, b) => b.value - a.value || b.balance - a.balance);
+  const suppliers = accountRows.filter((row) => row.party.partyType === "supplier" && row.transactionCount > 0).sort((a, b) => b.value - a.value || b.balance - a.balance);
   const customerDue = accountRows.filter((row) => row.party.partyType === "customer" && row.balance > 0).reduce((sum, row) => sum + row.balance, 0);
   const supplierDue = accountRows.filter((row) => row.party.partyType === "supplier" && row.balance > 0).reduce((sum, row) => sum + row.balance, 0);
   const collectionRate = sales ? Math.min(100, Math.round(collections / sales * 100)) : 0;
   const supplierPaymentRate = purchases ? Math.min(100, Math.round(payments / purchases * 100)) : 0;
   const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
-  const exportReport = () => downloadCsv(`rkh-business-report-${period === "lifetime" ? "lifetime" : range.from}.csv`, ["Account type", "Party", "Sales or purchases (NPR)", "Payments (NPR)", "Lifetime balance (NPR)"], accountRows.map((row) => [row.party.partyType === "supplier" ? "Supplier" : "Customer", row.party.name, row.value, row.paid, row.balance]));
+  const largestEntry = [...reportEntries].sort((a, b) => b.amount - a.amount)[0];
+  const largestSale = [...customerSales].sort((a, b) => b.amount - a.amount)[0];
+  const largestPurchase = [...supplierPurchases].sort((a, b) => b.amount - a.amount)[0];
+  const activeCustomers = new Set(reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType !== "supplier").map((entry) => entry.partyId)).size;
+  const activeSuppliers = new Set(reportEntries.filter((entry) => partyById.get(entry.partyId)?.partyType === "supplier").map((entry) => entry.partyId)).size;
+  const dailyActivity = Array.from(reportEntries.reduce((groups, entry) => {
+    const current = groups.get(entry.bs) ?? { bs: entry.bs, sales: 0, purchases: 0, count: 0 };
+    if (entry.type === "PURCHASE") {
+      if (partyById.get(entry.partyId)?.partyType === "supplier") current.purchases += entry.amount;
+      else current.sales += entry.amount;
+    }
+    current.count += 1;
+    groups.set(entry.bs, current);
+    return groups;
+  }, new Map<string, { bs: string; sales: number; purchases: number; count: number }>()).values()).sort((a, b) => a.bs.localeCompare(b.bs)).slice(-12);
+  const activityPeak = Math.max(1, ...dailyActivity.flatMap((day) => [day.sales, day.purchases]));
+  const exportReport = () => downloadCsv(`rkh-detailed-report-${period === "lifetime" ? "lifetime" : range.from}.csv`, ["Account type", "Party", "Sales or purchases (NPR)", "Payments (NPR)", "Average value (NPR)", "Transactions", "Lifetime balance (NPR)"], accountRows.map((row) => [row.party.partyType === "supplier" ? "Supplier" : "Customer", row.party.name, row.value, row.paid, row.averageValue, row.transactionCount, row.balance]));
 
   return <>
-    <Header eyebrow="BUSINESS REPORTS" title="Reports" description="Understand sales, purchases, collections, payments, and account balances." action={exportReport} label="Download report" />
+    <Header eyebrow="BUSINESS REPORTS" title="Reports" description="Detailed reports for account performance, transaction patterns, and payment efficiency." action={exportReport} label="Download report" />
     <section className="dashboard-filter" aria-label="Report date range">
       <div className="period-tabs" role="group" aria-label="Report date range preset">{(["week", "month", "year", "lifetime", "custom"] as const).map((item) => <button type="button" key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>
       <span className="period-range">{period === "lifetime" ? "Lifetime · All recorded dates" : `${periodName} · ${range.from} to ${range.to} BS`}</span>
       {period === "custom" && <div className="custom-range"><div><span>From (BS)</span><NepaliDatePicker value={customFrom} onChange={setCustomFrom} /></div><div><span>To (BS)</span><NepaliDatePicker value={customTo} onChange={setCustomTo} /></div></div>}
       {invalidRange && <p className="range-error">The start date must be on or before the end date.</p>}
     </section>
-    <section className="report-kpis">
+    <section className="report-kpis report-legacy-hidden" aria-hidden="true">
       <div><span>Total sales</span><strong>{money(sales)}</strong><small>Sold to customers · {periodName}</small></div>
       <div><span>Total purchases</span><strong>{money(purchases)}</strong><small>Bought from suppliers · {periodName}</small></div>
       <div><span>Cash received</span><strong>{money(collections)}</strong><small>Received from customers · {periodName}</small></div>
       <div><span>Cash paid</span><strong>{money(payments)}</strong><small>Paid to suppliers · {periodName}</small></div>
     </section>
-    <section className="report-insights">
+    <section className="report-insights report-legacy-hidden" aria-hidden="true">
       <article><span className="eyebrow">COLLECTION PROGRESS</span><h2>Customer payments received</h2><strong>{collectionRate}%</strong><p>{money(collections)} received from {money(sales)} in sales during {periodName.toLowerCase()}.</p><div className="report-progress"><i style={{ width: `${collectionRate}%` }} /></div></article>
       <article><span className="eyebrow">PAYMENT PROGRESS</span><h2>Supplier payments made</h2><strong>{supplierPaymentRate}%</strong><p>{money(payments)} paid from {money(purchases)} in purchases during {periodName.toLowerCase()}.</p><div className="report-progress supplier"><i style={{ width: `${supplierPaymentRate}%` }} /></div></article>
       <article><span className="eyebrow">LIFETIME BALANCES</span><h2>Amounts still waiting</h2><div className="report-balance-pair"><span>Customers owe you <b>{money(customerDue)}</b></span><span>You owe suppliers <b>{money(supplierDue)}</b></span></div></article>
     </section>
-    <section className="report-tables">
+    <section className="report-tables report-legacy-hidden" aria-hidden="true">
       <article className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">CUSTOMER REPORT</span><h2>Top customers by sales</h2></div><button className="text-link" onClick={() => go("parties?type=customer")}>View customers <ArrowRight size={14} /></button></div><ReportRows rows={customers} parties={parties} type="customer" empty="No customer activity in this period." /></article>
       <article className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">SUPPLIER REPORT</span><h2>Top suppliers by purchases</h2></div><button className="text-link" onClick={() => go("parties?type=supplier")}>View suppliers <ArrowRight size={14} /></button></div><ReportRows rows={suppliers} parties={parties} type="supplier" empty="No supplier activity in this period." /></article>
+    </section>
+    <section className="report-stat-grid" aria-label="Report summary">
+      <div><span>Transactions recorded</span><strong>{reportEntries.length}</strong><small>{periodName}</small></div>
+      <div><span>Average customer sale</span><strong>{money(customerSales.length ? sales / customerSales.length : 0)}</strong><small>Across {customerSales.length} sale{customerSales.length === 1 ? "" : "s"}</small></div>
+      <div><span>Average supplier purchase</span><strong>{money(supplierPurchases.length ? purchases / supplierPurchases.length : 0)}</strong><small>Across {supplierPurchases.length} purchase{supplierPurchases.length === 1 ? "" : "s"}</small></div>
+      <div><span>Largest transaction</span><strong>{largestEntry ? money(largestEntry.amount) : "—"}</strong><small>{largestEntry ? `${entryLabel(largestEntry, partyById.get(largestEntry.partyId))} · ${partyById.get(largestEntry.partyId)?.name ?? "Unknown party"}` : "No transactions"}</small></div>
+      <div><span>Customers with activity</span><strong>{activeCustomers}</strong><small>Customers used in this period</small></div>
+      <div><span>Suppliers with activity</span><strong>{activeSuppliers}</strong><small>Suppliers used in this period</small></div>
+    </section>
+    <section className="report-workspace">
+      <article className="report-panel activity-timeline"><div className="report-panel-heading"><div><span className="eyebrow">ACTIVITY OVER TIME</span><h2>Sales and purchases by date</h2><p>Each pair of bars shows the amount recorded on that Nepali date.</p></div></div><div className="timeline-bars">{dailyActivity.map((day) => <div key={day.bs}><div className="timeline-values"><i className="sales" style={{ height: `${Math.max(3, day.sales / activityPeak * 100)}%` }} /><i className="purchases" style={{ height: `${Math.max(3, day.purchases / activityPeak * 100)}%` }} /></div><small>{day.bs.slice(5)}</small><em>{day.count}</em></div>)}{dailyActivity.length === 0 && <p className="empty-state">No activity in this date range.</p>}</div><div className="timeline-key"><span><i className="chart-dot sales" />Sales</span><span><i className="chart-dot purchases" />Purchases</span><span>Number = transactions on that date</span></div></article>
+      <article className="report-panel report-efficiency"><div className="report-panel-heading"><div><span className="eyebrow">PAYMENT EFFICIENCY</span><h2>How quickly money moved</h2><p>These rates compare payments with sales and purchases recorded in the same date range.</p></div></div><div className="efficiency-item"><span>Customer sales collected</span><strong>{collectionRate}%</strong><div className="report-progress"><i style={{ width: `${collectionRate}%` }} /></div><small>{money(collections)} received from customer sales</small></div><div className="efficiency-item"><span>Supplier purchases paid</span><strong>{supplierPaymentRate}%</strong><div className="report-progress supplier"><i style={{ width: `${supplierPaymentRate}%` }} /></div><small>{money(payments)} paid against supplier purchases</small></div></article>
+      <article className="report-panel report-largest"><div className="report-panel-heading"><div><span className="eyebrow">LARGEST RECORDS</span><h2>High-value transactions</h2></div></div><div className="largest-record"><span>Largest sale</span><strong>{largestSale ? money(largestSale.amount) : "—"}</strong><small>{largestSale ? partyById.get(largestSale.partyId)?.name : "No sales"}</small></div><div className="largest-record"><span>Largest purchase</span><strong>{largestPurchase ? money(largestPurchase.amount) : "—"}</strong><small>{largestPurchase ? partyById.get(largestPurchase.partyId)?.name : "No purchases"}</small></div><div className="largest-record"><span>Largest payment received</span><strong>{customerPayments.length ? money(Math.max(...customerPayments.map((entry) => entry.amount))) : "—"}</strong><small>Customer payment recorded</small></div><div className="largest-record"><span>Largest supplier payment</span><strong>{supplierPayments.length ? money(Math.max(...supplierPayments.map((entry) => entry.amount))) : "—"}</strong><small>Supplier payment recorded</small></div></article>
+    </section>
+    <section className="report-detail-panels">
+      <article className="report-panel"><div className="report-panel-heading"><div><span className="eyebrow">CUSTOMER PERFORMANCE</span><h2>Customer sales report</h2><p>Sales, collections, average sale size, and transaction count for every active customer.</p></div><button className="text-link" onClick={() => go("parties?type=customer")}>View customers <ArrowRight size={14} /></button></div><ReportAccountTable rows={customers} parties={parties} type="customer" empty="No customer activity in this period." /></article>
+      <article className="report-panel"><div className="report-panel-heading"><div><span className="eyebrow">SUPPLIER PERFORMANCE</span><h2>Supplier purchasing report</h2><p>Purchases, payments, average purchase size, and transaction count for every active supplier.</p></div><button className="text-link" onClick={() => go("parties?type=supplier")}>View suppliers <ArrowRight size={14} /></button></div><ReportAccountTable rows={suppliers} parties={parties} type="supplier" empty="No supplier activity in this period." /></article>
     </section>
   </>;
 }
 
 function ReportRows({ rows, parties, type, empty }: { rows: { party: Party; value: number; paid: number; balance: number }[]; parties: Party[]; type: "customer" | "supplier"; empty: string }) {
   return <div className="report-row-list">{rows.slice(0, 8).map((row) => <button key={row.party.id} type="button" onClick={() => go(partyPath(row.party, parties))}><span><strong>{row.party.name}</strong><small>{type === "customer" ? "Sales" : "Purchases"}: {money(row.value)} · {type === "customer" ? "Received" : "Paid"}: {money(row.paid)}</small></span><b className={row.balance > 0 ? "due" : ""}>{row.balance > 0 ? (type === "customer" ? "To collect " : "To pay ") : "Balance "}{money(Math.abs(row.balance))}</b></button>)}{rows.length === 0 && <p className="empty-state">{empty}</p>}</div>;
+}
+
+function ReportAccountTable({ rows, parties, type, empty }: { rows: { party: Party; value: number; paid: number; transactionCount: number; averageValue: number; balance: number }[]; parties: Party[]; type: "customer" | "supplier"; empty: string }) {
+  const primary = type === "customer" ? "Sales" : "Purchases";
+  const payment = type === "customer" ? "Received" : "Paid";
+  return <div className="report-account-table"><div className="report-account-head"><span>PARTY</span><span>{primary.toUpperCase()}</span><span>{payment.toUpperCase()}</span><span>AVERAGE</span><span>COUNT</span></div>{rows.map((row) => <button key={row.party.id} type="button" onClick={() => go(partyPath(row.party, parties))}><span><strong>{row.party.name}</strong><small>{row.party.company || row.party.location || "Party account"}</small></span><b>{money(row.value)}</b><b>{money(row.paid)}</b><b>{money(row.averageValue)}</b><b>{row.transactionCount}</b></button>)}{rows.length === 0 && <p className="empty-state">{empty}</p>}</div>;
 }
 
 /* =========================================================
