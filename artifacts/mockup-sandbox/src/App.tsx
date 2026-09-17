@@ -20,6 +20,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  Pencil,
   Phone,
   Plus,
   Search,
@@ -508,6 +509,7 @@ function Table({
   emptyMessage = "No transactions recorded yet.",
   selectedIds,
   onSelect,
+  onEdit,
   selectionDisabled = false,
 }: {
   entries: Entry[];
@@ -515,6 +517,7 @@ function Table({
   emptyMessage?: string;
   selectedIds?: Set<string>;
   onSelect?: (entry: Entry) => void;
+  onEdit?: (entry: Entry) => void;
   selectionDisabled?: boolean;
 }) {
   const partyById = new Map(parties.map((party) => [party.id, party]));
@@ -553,7 +556,7 @@ function Table({
 
           <span>{entryDescription(entry) || "—"}</span>
 
-          <strong>{money(entry.amount)}</strong>
+          <strong><span>{money(entry.amount)}</span>{onEdit && <button type="button" className="transaction-edit-icon" aria-label={`Edit transaction for ${money(entry.amount)}`} onClick={() => onEdit(entry)}><Pencil size={14} aria-hidden="true" /></button>}</strong>
         </div>;
       })}
       {entries.length === 0 && <p className="empty-state">{emptyMessage}</p>}
@@ -1969,6 +1972,30 @@ function EditParty({
    PARTY DETAIL
    ========================================================= */
 
+function EditTransaction({ entry, party, onClose, onSave }: { entry: Entry; party: Party; onClose: () => void; onSave: (entry: Entry) => Promise<boolean> }) {
+  const [form, setForm] = useState(entry);
+  const [amount, setAmount] = useState(entry.amount.toFixed(2));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const changeEnglishDate = (ad: string) => {
+    const [year, month, day] = ad.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    if (!ad || date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) { setError("Choose a valid English date."); return; }
+    try { setForm((current) => ({ ...current, ad, bs: new NepaliDate(date).format("YYYY-MM-DD") })); setError(""); } catch { setError("This date is outside the supported Nepali calendar range."); }
+  };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const cents = parseMoneyCents(amount);
+    if (!cents || cents <= 0) { setError("Enter a valid amount with no more than two decimal places."); return; }
+    setSaving(true); setError("");
+    const saved = await onSave({ ...form, amount: cents / 100, description: form.description.trim() });
+    setSaving(false);
+    if (!saved) setError("Could not save this transaction. Please try again.");
+  };
+  const label = entry.type === "PAYMENT" ? (party.partyType === "supplier" ? "Payment made" : "Payment received") : party.partyType === "supplier" ? "Purchase" : "Sale";
+  return createPortal(<div className="profile-modal-backdrop transaction-edit-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}><section className="profile-modal transaction-edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-transaction-title"><div className="profile-modal-head"><div><span className="eyebrow">EDIT TRANSACTION</span><h2 id="edit-transaction-title">{label}</h2></div><button type="button" aria-label="Close transaction editor" onClick={onClose} disabled={saving}><X size={18} /></button></div><p className="transaction-edit-party">{party.name}</p><form onSubmit={submit}><FormField label="Amount (NPR) *"><input required inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField><div className="transaction-edit-dates"><div className="form-field"><span>Nepali date (BS) *</span><NepaliDatePicker value={form.bs} onChange={(bs, ad) => { setForm((current) => ({ ...current, bs, ad })); setError(""); }} /></div><FormField label="English date (AD) *"><EnglishDatePicker value={form.ad} onChange={changeEnglishDate} /></FormField></div><FormField label="Description"><textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></FormField>{error && <p className="form-error" role="alert">{error}</p>}<div className="profile-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : "Save changes"}</button></div></form></section></div>, document.body);
+}
+
 function PartyDetail({
   party,
   allParties,
@@ -1976,6 +2003,7 @@ function PartyDetail({
   edit,
   remove,
   deleteTransactions,
+  updateTransaction,
 }: {
   party: Party;
   allParties: Party[];
@@ -1983,12 +2011,14 @@ function PartyDetail({
   edit: () => void;
   remove: () => void;
   deleteTransactions: (ids: string[]) => Promise<string[]>;
+  updateTransaction: (entry: Entry) => Promise<boolean>;
 }) {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState<"party" | "transactions" | null>(null);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [editingTransaction, setEditingTransaction] = useState<Entry | null>(null);
   const rows = entries.filter(
     (entry) =>
       entry.partyId === party.id,
@@ -2184,8 +2214,10 @@ function PartyDetail({
             else next.add(entry.id);
             return next;
           })}
+          onEdit={setEditingTransaction}
         />
       </section>
+      {editingTransaction && <EditTransaction entry={editingTransaction} party={party} onClose={() => setEditingTransaction(null)} onSave={async (next) => { const success = await updateTransaction(next); if (success) setEditingTransaction(null); return success; }} />}
       {confirmingDelete && createPortal(
         <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
           <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
@@ -2770,6 +2802,24 @@ export default function App() {
     return deletedIds;
   };
 
+  const updateTransaction = async (entry: Entry): Promise<boolean> => {
+    const amountCents = toCents(entry.amount);
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) return false;
+    const { data, error } = await supabase.from("transactions").update({
+      party_id: entry.partyId,
+      type: entry.type,
+      amount: (amountCents / 100).toFixed(2),
+      date_ad: entry.ad,
+      date_bs: entry.bs,
+      description: entry.description || null,
+    }).eq("id", entry.id).select("id, party_id, type, amount, date_ad, date_bs, description").single();
+    if (error || !data) { console.error(error); showNotice("Could not update transaction", error?.message ?? "Please try again.", "error"); return false; }
+    const saved: Entry = { id: data.id, partyId: data.party_id, type: data.type as EntryType, amount: Number(data.amount), ad: data.date_ad, bs: data.date_bs, description: data.description ?? "" };
+    setEntries((items) => items.map((item) => item.id === saved.id ? saved : item));
+    showNotice("Transaction updated", `${money(saved.amount)} saved for ${partyName(parties, saved.partyId)}.`);
+    return true;
+  };
+
   /* ADD TRANSACTION */
 
   const addEntry = async (
@@ -2988,6 +3038,7 @@ export default function App() {
             deleteParty(party)
           }
           deleteTransactions={deleteTransactions}
+          updateTransaction={updateTransaction}
         />
       );
     }
