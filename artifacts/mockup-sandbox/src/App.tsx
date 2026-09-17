@@ -551,16 +551,23 @@ function Dashboard({
   const collected = periodEntries
     .filter((entry) => entry.type === "PAYMENT")
     .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-  const totalActivityCents = toCents(purchased) + toCents(collected);
-  const purchaseShare = totalActivityCents ? Math.round(toCents(purchased) / totalActivityCents * 100) : 0;
+  const lifetimePurchased = entries
+    .filter((entry) => entry.type === "PURCHASE")
+    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+  const lifetimeCollected = entries
+    .filter((entry) => entry.type === "PAYMENT")
+    .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+  const totalActivityCents = toCents(lifetimePurchased) + toCents(lifetimeCollected);
+  const purchaseShare = totalActivityCents ? Math.round(toCents(lifetimePurchased) / totalActivityCents * 100) : 0;
   const paymentShare = totalActivityCents ? 100 - purchaseShare : 0;
   const periodBalances = balancesByParty(periodEntries);
+  const lifetimeBalances = balancesByParty(entries);
+  const outstanding = parties.reduce((total, party) => total + Math.max(0, periodBalances.get(party.id) ?? 0), 0) / 100;
 
   const dueParties = parties
-    .map((party) => ({ party, balance: (periodBalances.get(party.id) ?? 0) / 100 }))
+    .map((party) => ({ party, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 }))
     .filter(({ balance }) => balance > 0)
     .sort((a, b) => b.balance - a.balance);
-  const outstanding = dueParties.reduce((total, item) => total + toCents(item.balance), 0) / 100;
   const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
 
   return (
@@ -638,13 +645,13 @@ function Dashboard({
         <div className="activity-copy">
           <span className="eyebrow">AT A GLANCE</span>
           <h2>Business activity</h2>
-          <p>{period === "lifetime" ? "Purchases and payments across your full ledger." : "Purchases and payments in the selected period."}</p>
+          <p>Lifetime purchases and payments across your full ledger.</p>
           <div className="activity-legend">
-            <span><i className="legend-purchase" /> Purchases <strong>{money(purchased)}</strong><em>{purchaseShare}%</em></span>
-            <span><i className="legend-payment" /> Payments received <strong>{money(collected)}</strong><em>{paymentShare}%</em></span>
+            <span><i className="legend-purchase" /> Purchases <strong>{money(lifetimePurchased)}</strong><em>{purchaseShare}%</em></span>
+            <span><i className="legend-payment" /> Payments received <strong>{money(lifetimeCollected)}</strong><em>{paymentShare}%</em></span>
           </div>
         </div>
-        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments in this period"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(purchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
+        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Lifetime purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments recorded"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(lifetimePurchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
           <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "purchases" : "no activity"}</small></div>
         </div>
       </section>
@@ -654,7 +661,7 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                {period === "lifetime" ? "LATEST MOVEMENT" : "IN THIS PERIOD"}
+                LATEST MOVEMENT
               </span>
 
               <h2>Recent transactions</h2>
@@ -670,9 +677,9 @@ function Dashboard({
           </div>
 
           <Table
-            entries={periodEntries.slice(0, 10)}
+            entries={entries.slice(0, 10)}
             parties={parties}
-            emptyMessage={period === "lifetime" ? "No transactions recorded yet." : "No transactions in this date range."}
+            emptyMessage="No transactions recorded yet."
           />
         </section>
 
@@ -680,7 +687,7 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                {period === "lifetime" ? "CURRENT BALANCES" : "IN THIS PERIOD"}
+                CURRENT BALANCES
               </span>
 
               <h2>Outstanding balances</h2>
@@ -717,7 +724,7 @@ function Dashboard({
               </div>
             ))}
           {dueParties.length === 0 && (
-            <p className="empty-state">{period === "lifetime" ? "No outstanding balances." : "No outstanding balances in this date range."}</p>
+            <p className="empty-state">No outstanding balances.</p>
           )}
         </section>
       </div>
