@@ -2183,12 +2183,12 @@ function PartyDetail({
       {confirmingDelete && (
         <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
           <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
-            <h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2>
+            <div className="delete-confirm-heading"><span aria-hidden="true"><Trash2 size={18} /></span><div><p className="delete-confirm-kicker">Permanent action</p><h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2></div></div>
             <p id="delete-confirm-detail">{confirmingDelete === "party" ? "This will permanently remove the party and all its transactions." : "Only the selected transactions will be removed. Party balances will update."} This cannot be undone.</p>
             <div className="delete-confirm-actions">
               <button type="button" className="outline-button" autoFocus onClick={() => setConfirmingDelete(null)}>Cancel</button>
               <button type="button" className="delete-button" onClick={() => { if (confirmingDelete === "party") { setConfirmingDelete(null); remove(); } else { void removeSelectedTransactions(); } }}>
-                <Trash2 size={14} aria-hidden="true" /> Delete {confirmingDelete === "party" ? "party" : "transactions"}
+                <Trash2 size={14} aria-hidden="true" /> Delete permanently
               </button>
             </div>
           </section>
