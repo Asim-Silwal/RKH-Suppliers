@@ -46,6 +46,7 @@ type DashboardPeriod = "week" | "month" | "year" | "custom" | "lifetime";
 
 type Party = {
   id: string;
+  partyType: "customer" | "supplier";
   name: string;
   company?: string;
   contact?: string;
@@ -750,14 +751,16 @@ function Parties({
   entries: Entry[];
 }) {
   const [query, setQuery] = useState("");
+  const [partyType, setPartyType] = useState<Party["partyType"]>(() => new URLSearchParams(window.location.search).get("type") === "supplier" ? "supplier" : "customer");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const searchRef = useRef<HTMLInputElement>(null);
-  const matches = query.trim() ? matchingParties(parties, query).slice(0, 6) : [];
+  const filteredParties = parties.filter((party) => party.partyType === partyType);
+  const matches = query.trim() ? matchingParties(filteredParties, query).slice(0, 6) : [];
   const showSuggestions = suggestionsOpen && Boolean(query.trim());
 
-  const shown = matchingParties(parties, query);
+  const shown = matchingParties(filteredParties, query);
   const partyBalances = balancesByParty(entries);
 
   return (
@@ -765,10 +768,15 @@ function Parties({
       <Header
         eyebrow="DIRECTORY"
         title="Parties"
-        description="Manage the suppliers, retailers, and customers in your ledger."
+        description="Manage your customer and supplier accounts."
         action={() => go("add-party")}
         label="Add party"
       />
+
+      <div className="party-type-tabs" role="group" aria-label="Party type">
+        <button type="button" className={partyType === "customer" ? "active" : ""} aria-pressed={partyType === "customer"} onClick={() => { setPartyType("customer"); setVisibleCount(LIST_PAGE_SIZE); setSuggestionsOpen(false); }}>Customers <span>{parties.filter((party) => party.partyType === "customer").length}</span></button>
+        <button type="button" className={partyType === "supplier" ? "active" : ""} aria-pressed={partyType === "supplier"} onClick={() => { setPartyType("supplier"); setVisibleCount(LIST_PAGE_SIZE); setSuggestionsOpen(false); }}>Suppliers <span>{parties.filter((party) => party.partyType === "supplier").length}</span></button>
+      </div>
 
       <div className="filter-bar directory-search-bar">
         <div className="party-search-field" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setSuggestionsOpen(false); }}>
@@ -847,7 +855,7 @@ function Parties({
         })}
         {shown.length === 0 && (
           <p className="empty-state">
-            {query ? "No parties match your search." : "No parties yet. Add a party to start recording transactions."}
+            {query ? `No ${partyType}s match your search.` : `No ${partyType}s yet. Add a ${partyType} to get started.`}
           </p>
         )}
         {shown.length > visibleCount && <button type="button" className="list-load-more" onClick={() => setVisibleCount((count) => count + LIST_PAGE_SIZE)}>Show more parties ({shown.length - visibleCount} remaining)</button>}
@@ -887,6 +895,7 @@ function AddParty({
   ) => Promise<boolean>;
 }) {
   const [form, setForm] = useState({
+    partyType: "customer" as Party["partyType"],
     name: "",
     company: "",
     contact: "",
@@ -918,7 +927,7 @@ function AddParty({
     setSaving(false);
 
     if (success) {
-      go("parties");
+      go(`parties?type=${form.partyType}`);
     } else {
       setError(
         "Could not save party. Please try again.",
@@ -931,7 +940,7 @@ function AddParty({
       <Header
         eyebrow="PARTIES / NEW"
         title="Add party"
-        description="Create an account for a supplier, retailer, or customer."
+        description="Create a customer or supplier account."
         action={() => go("parties")}
         label="Back to parties"
       />
@@ -943,6 +952,12 @@ function AddParty({
         <h2>Party information</h2>
 
         <div className="form-grid">
+          <FormField label="Party type *">
+            <select value={form.partyType} onChange={(event) => setForm({ ...form, partyType: event.target.value as Party["partyType"] })}>
+              <option value="customer">Customer</option>
+              <option value="supplier">Supplier</option>
+            </select>
+          </FormField>
           <FormField label="Name *">
             <input
               required
@@ -1597,7 +1612,7 @@ function EditParty({
       <Header
         eyebrow="PARTIES / EDIT"
         title="Edit party"
-        description="Update this party's account and contact details."
+        description="Update this party's type and contact details."
         action={() =>
           go(partyPath(party, parties))
         }
@@ -1611,6 +1626,12 @@ function EditParty({
         <h2>Party information</h2>
 
         <div className="form-grid">
+          <FormField label="Party type *">
+            <select value={form.partyType} onChange={(event) => setForm({ ...form, partyType: event.target.value as Party["partyType"] })}>
+              <option value="customer">Customer</option>
+              <option value="supplier">Supplier</option>
+            </select>
+          </FormField>
           <FormField label="Name *">
             <input
               required
@@ -2331,6 +2352,7 @@ export default function App() {
       (partyResult.data ?? []).map(
         (party) => ({
           id: party.id,
+          partyType: party.party_type === "supplier" ? "supplier" : "customer",
           name: party.name,
           company:
             party.company_name ?? "",
@@ -2384,6 +2406,7 @@ export default function App() {
       await supabase
         .from("parties")
         .insert({
+          party_type: party.partyType,
           name: party.name.trim(),
 
           company_name:
@@ -2402,7 +2425,7 @@ export default function App() {
             party.notes?.trim() ||
             null,
         })
-        .select("id, name, company_name, contact, location, notes")
+        .select("id, party_type, name, company_name, contact, location, notes")
         .single();
 
     if (error) {
@@ -2416,6 +2439,7 @@ export default function App() {
 
       {
         id: data.id,
+        partyType: data.party_type === "supplier" ? "supplier" : "customer",
         name: data.name,
 
         company:
@@ -2446,6 +2470,7 @@ export default function App() {
       await supabase
         .from("parties")
         .update({
+          party_type: party.partyType,
           name: party.name.trim(),
 
           company_name:

@@ -99,6 +99,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .filter-bar input, .filter-bar select, .transaction-filters input { color: #242428; }
 .filter-bar select, .transaction-filters input { border-color: #dedee3; }
 .transaction-filters, .directory-search-bar { position: relative; z-index: 20; }
+.party-type-tabs { display: flex; width: max-content; max-width: 100%; gap: 4px; margin-bottom: 14px; padding: 4px; border: 1px solid #dedee6; border-radius: 11px; background: #f3f4f7; }
+.party-type-tabs button { display: inline-flex; align-items: center; gap: 9px; min-height: 36px; padding: 7px 14px; border: 0; border-radius: 8px; background: transparent; color: #606878; font-size: 13px; cursor: pointer; }
+.party-type-tabs button.active { background: #fff; color: #254f91; box-shadow: 0 1px 5px rgba(29, 47, 76, .1); font-weight: 600; }
+.party-type-tabs button span { color: #8b95a3; font-size: 11px; }
+.party-type-tabs button:focus-visible { outline: 2px solid #315f9f; outline-offset: 2px; }
 .party-search-field { position: relative; display: flex; flex: 1 1 250px; align-items: center; gap: 10px; min-width: 190px; min-height: 38px; color: #818a98; }
 .party-search-field > svg { flex: 0 0 auto; }
 .transaction-filters .party-search-field input, .directory-search-bar .party-search-field input { flex: 1 1 auto; min-width: 0; min-height: 36px; padding: 6px 0; border: 0; background: transparent; color: #242832; font-size: 13px; outline: 0; }
