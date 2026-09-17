@@ -168,8 +168,9 @@ export async function createPartyStatementPdf(party: StatementParty, entries: St
 
   for (const entry of ordered) {
     const kind = entry.type === "PURCHASE" ? "Sale" : "Payment received";
-    const description = entry.description.trim()
-      ? entry.description.trim().toLowerCase().startsWith(kind.toLowerCase()) ? entry.description.trim() : `${kind} - ${entry.description.trim()}`
+    const savedDescription = entry.description.trim() === "Payment received with purchase" ? "Payment received with sale" : entry.description.trim();
+    const description = savedDescription
+      ? savedDescription.toLowerCase().startsWith(kind.toLowerCase()) ? savedDescription : `${kind} - ${savedDescription}`
       : kind;
     const lines = wrapText(description, font, devanagari, 8, COLUMNS[1] - 10);
     const height = Math.max(30, 13 + lines.length * 10);

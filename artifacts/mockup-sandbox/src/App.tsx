@@ -105,6 +105,11 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 const partyName = (parties: Party[], id: string) =>
   parties.find((party) => party.id === id)?.name ?? "Unknown party";
 
+const entryDescription = (entry: Entry) =>
+  entry.description === "Payment received with purchase"
+    ? "Payment received with sale"
+    : entry.description;
+
 const partySlug = (name: string) =>
   name.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
 
@@ -509,10 +514,10 @@ function Table({
           </span>
 
           <span className={`type ${entry.type.toLowerCase()}`}>
-            {entry.type === "PURCHASE" ? "Purchase" : "Payment"}
+            {entry.type === "PURCHASE" ? "Sale" : "Payment"}
           </span>
 
-          <span>{entry.description || "—"}</span>
+          <span>{entryDescription(entry) || "—"}</span>
 
           <strong>{money(entry.amount)}</strong>
         </div>
@@ -576,7 +581,7 @@ function Dashboard({
       <Header
         eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
-        description="Track purchases, payments, and outstanding party balances in one place."
+        description="Track sales, payments, and outstanding party balances in one place."
         action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
@@ -625,7 +630,7 @@ function Dashboard({
         </div>
 
         <div>
-          <span>Purchases recorded</span>
+          <span>Sales recorded</span>
 
           <strong>{money(purchased)}</strong>
 
@@ -646,14 +651,14 @@ function Dashboard({
         <div className="activity-copy">
           <span className="eyebrow">AT A GLANCE</span>
           <h2>Business activity</h2>
-          <p>Lifetime purchases and payments across your full ledger.</p>
+          <p>Lifetime sales and payments across your full ledger.</p>
           <div className="activity-legend">
-            <span><i className="legend-purchase" /> Purchases <strong>{money(lifetimePurchased)}</strong><em>{purchaseShare}%</em></span>
+            <span><i className="legend-purchase" /> Sales <strong>{money(lifetimePurchased)}</strong><em>{purchaseShare}%</em></span>
             <span><i className="legend-payment" /> Payments received <strong>{money(lifetimeCollected)}</strong><em>{paymentShare}%</em></span>
           </div>
         </div>
-        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Lifetime purchases ${purchaseShare} percent; payments received ${paymentShare} percent` : "No purchases or payments recorded"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(lifetimePurchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
-          <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "purchases" : "no activity"}</small></div>
+        <div className="activity-chart" role="img" aria-label={totalActivityCents ? `Lifetime sales ${purchaseShare} percent; payments received ${paymentShare} percent` : "No sales or payments recorded"} style={{ background: totalActivityCents ? `conic-gradient(var(--chart-purchase) 0 ${toCents(lifetimePurchased) / totalActivityCents * 100}%, var(--chart-payment) 0 100%)` : "#ebebef" }}>
+          <div><strong>{totalActivityCents ? `${purchaseShare}%` : "—"}</strong><small>{totalActivityCents ? "sales" : "no activity"}</small></div>
         </div>
       </section>
 
@@ -1141,7 +1146,7 @@ function AddEntry({
     }
 
     if (invalidPaidNow) {
-      setError("Enter a partial payment greater than zero and less than the purchase total.");
+      setError("Enter a partial payment greater than zero and less than the sale total.");
       return;
     }
 
@@ -1174,7 +1179,7 @@ function AddEntry({
       <Header
         eyebrow="TRANSACTIONS / NEW"
         title="New transaction"
-        description="Record a purchase, an immediate part payment, or a later payment. Party balances update automatically."
+        description="Record a sale, an immediate part payment, or a later payment. Party balances update automatically."
         action={() => go("transactions")}
         label="View transactions"
       />
@@ -1231,7 +1236,7 @@ function AddEntry({
               }}
             >
               <option value="PURCHASE">
-                Purchase
+                Sale
               </option>
 
               <option value="PAYMENT">
@@ -1241,7 +1246,7 @@ function AddEntry({
           </FormField>
 
           <div className="amount-column">
-            <FormField label={form.type === "PURCHASE" ? "Purchase total (NPR) *" : "Payment amount (NPR) *"}>
+            <FormField label={form.type === "PURCHASE" ? "Sale total (NPR) *" : "Payment amount (NPR) *"}>
               <input
                 required
                 type="text"
@@ -1278,7 +1283,7 @@ function AddEntry({
                       placeholder="0.00"
                     />
                     <small>Enter the amount received now. The rest stays outstanding.</small>
-                    {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the purchase total.</small>}
+                    {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the sale total.</small>}
                   </FormField>
                 )}
               </>
@@ -1310,9 +1315,9 @@ function AddEntry({
 
         {form.type === "PURCHASE" && purchaseCents > 0 && (
           <div className="payment-preview" aria-live="polite">
-            <div><span>Purchase total</span><strong>{money(purchaseCents / 100)}</strong></div>
+            <div><span>Sale total</span><strong>{money(purchaseCents / 100)}</strong></div>
             <div><span>Paid now</span><strong>{money(paidNowCents / 100)}</strong></div>
-            <div><span>Remaining from this purchase</span><strong>{money(remainingCents / 100)}</strong></div>
+            <div><span>Remaining from this sale</span><strong>{money(remainingCents / 100)}</strong></div>
           </div>
         )}
 
@@ -1326,7 +1331,7 @@ function AddEntry({
                   event.target.value,
               })
             }
-            placeholder="What was purchased or paid?"
+            placeholder="What was sold or paid?"
           />
         </FormField>
 
@@ -1412,7 +1417,7 @@ function Transactions({
       const text =
         `${party?.name ?? ""} ${
           party?.company ?? ""
-        } ${entry.description}`.toLowerCase();
+        } ${entryDescription(entry)}`.toLowerCase();
 
       return (
         (selectedPartyId ? entry.partyId === selectedPartyId : !query ||
@@ -1433,7 +1438,7 @@ function Transactions({
       <Header
         eyebrow="LEDGER / STATEMENT"
         title="Statement"
-        description="Review purchases and payments. Filter the list or export the current results."
+        description="Review sales and payments. Filter the list or export the current results."
         action={role === "admin" ? () => go("add-entry") : undefined}
         label="New transaction"
       />
@@ -1447,9 +1452,9 @@ function Transactions({
             const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
             downloadCsv(
               `rkh-statement-${todayDates().bs}.csv`,
-              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Purchase (NPR)", "Payment (NPR)"],
+              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Sales (NPR)", "Payment (NPR)"],
               [
-                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entry.type === "PURCHASE" ? "Purchase" : "Payment", entry.description, entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
+                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entry.type === "PURCHASE" ? "Sale" : "Payment", entryDescription(entry), entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
                 ["TOTAL", "", "", "", "", purchases, payments],
               ],
             );
@@ -1497,7 +1502,7 @@ function Transactions({
           </option>
 
           <option value="PURCHASE">
-            Purchases
+            Sales
           </option>
 
           <option value="PAYMENT">
@@ -1842,7 +1847,7 @@ function PartyDetail({
 
       <section className="summary-grid">
         <div>
-          <span>Purchases</span>
+          <span>Sales</span>
           <strong>
             {money(purchased)}
           </strong>
@@ -2010,7 +2015,7 @@ function Login() {
             </h1>
 
             <p className="login-intro">
-              Keep purchases, payments, and party balances organized in one secure place.
+              Keep sales, payments, and party balances organized in one secure place.
             </p>
           </div>
 
@@ -2573,7 +2578,7 @@ export default function App() {
         amount: paidNow.toFixed(2),
         date_ad: entry.ad,
         date_bs: entry.bs,
-        description: "Payment received with purchase",
+        description: "Payment received with sale",
       });
     }
 
@@ -2613,10 +2618,10 @@ export default function App() {
 
     const name = partyName(parties, entry.partyId);
     if (entry.type === "PURCHASE" && paidNow > 0) {
-      showNotice("Purchase and payment recorded", `${money(paidNow)} paid now · ${money(entry.amount - paidNow)} remaining for ${name}`);
+      showNotice("Sale and payment recorded", `${money(paidNow)} paid now · ${money(entry.amount - paidNow)} remaining for ${name}`);
     } else {
       showNotice(
-        entry.type === "PAYMENT" ? "Payment received" : "Purchase recorded",
+        entry.type === "PAYMENT" ? "Payment received" : "Sale recorded",
         `${money(entry.amount)} · ${name}`,
       );
     }
