@@ -10,6 +10,7 @@ import {
   ArrowRight,
   ArrowLeft,
   AlertCircle,
+  BarChart3,
   CheckCircle2,
   Check,
   Download,
@@ -246,6 +247,7 @@ function Shell({
     ["parties", "Parties", UsersRound],
     ["add-entry", "Transactions", Plus],
     ["transactions", "Statement", FileText],
+    ["reports", "Reports", BarChart3],
   ] as const : [
     ["dashboard", "Dashboard", LayoutDashboard],
     ["transactions", "Statement", FileText],
@@ -760,6 +762,69 @@ function Dashboard({
       </div>
     </>
   );
+}
+
+/* =========================================================
+   REPORTS
+   ========================================================= */
+
+function Reports({ parties, entries }: { parties: Party[]; entries: Entry[] }) {
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
+  const [customFrom, setCustomFrom] = useState(() => currentBsRange("month").from);
+  const [customTo, setCustomTo] = useState(() => todayDates().bs);
+  const range = period === "custom" ? { from: customFrom, to: customTo } : currentBsRange(period === "lifetime" ? "month" : period);
+  const invalidRange = period === "custom" && range.from > range.to;
+  const reportEntries = period === "lifetime" ? entries : invalidRange ? [] : entries.filter((entry) => entry.bs >= range.from && entry.bs <= range.to);
+  const partyById = new Map(parties.map((party) => [party.id, party]));
+  const total = (source: Entry[], check: (entry: Entry, party?: Party) => boolean) => source.reduce((sum, entry) => check(entry, partyById.get(entry.partyId)) ? sum + toCents(entry.amount) : sum, 0) / 100;
+  const sales = total(reportEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PURCHASE");
+  const purchases = total(reportEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PURCHASE");
+  const collections = total(reportEntries, (entry, party) => party?.partyType !== "supplier" && entry.type === "PAYMENT");
+  const payments = total(reportEntries, (entry, party) => party?.partyType === "supplier" && entry.type === "PAYMENT");
+  const lifetimeBalances = balancesByParty(entries);
+  const accountRows = parties.map((party) => {
+    const partyEntries = reportEntries.filter((entry) => entry.partyId === party.id);
+    const value = partyEntries.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + entry.amount, 0);
+    const paid = partyEntries.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + entry.amount, 0);
+    return { party, value, paid, balance: (lifetimeBalances.get(party.id) ?? 0) / 100 };
+  });
+  const customers = accountRows.filter((row) => row.party.partyType === "customer").sort((a, b) => b.value - a.value || b.balance - a.balance);
+  const suppliers = accountRows.filter((row) => row.party.partyType === "supplier").sort((a, b) => b.value - a.value || b.balance - a.balance);
+  const customerDue = accountRows.filter((row) => row.party.partyType === "customer" && row.balance > 0).reduce((sum, row) => sum + row.balance, 0);
+  const supplierDue = accountRows.filter((row) => row.party.partyType === "supplier" && row.balance > 0).reduce((sum, row) => sum + row.balance, 0);
+  const collectionRate = sales ? Math.min(100, Math.round(collections / sales * 100)) : 0;
+  const supplierPaymentRate = purchases ? Math.min(100, Math.round(payments / purchases * 100)) : 0;
+  const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
+  const exportReport = () => downloadCsv(`rkh-business-report-${period === "lifetime" ? "lifetime" : range.from}.csv`, ["Account type", "Party", "Sales or purchases (NPR)", "Payments (NPR)", "Lifetime balance (NPR)"], accountRows.map((row) => [row.party.partyType === "supplier" ? "Supplier" : "Customer", row.party.name, row.value, row.paid, row.balance]));
+
+  return <>
+    <Header eyebrow="BUSINESS REPORTS" title="Reports" description="Understand sales, purchases, collections, payments, and account balances." action={exportReport} label="Download report" />
+    <section className="dashboard-filter" aria-label="Report date range">
+      <div className="period-tabs" role="group" aria-label="Report date range preset">{(["week", "month", "year", "lifetime", "custom"] as const).map((item) => <button type="button" key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>
+      <span className="period-range">{period === "lifetime" ? "Lifetime · All recorded dates" : `${periodName} · ${range.from} to ${range.to} BS`}</span>
+      {period === "custom" && <div className="custom-range"><div><span>From (BS)</span><NepaliDatePicker value={customFrom} onChange={setCustomFrom} /></div><div><span>To (BS)</span><NepaliDatePicker value={customTo} onChange={setCustomTo} /></div></div>}
+      {invalidRange && <p className="range-error">The start date must be on or before the end date.</p>}
+    </section>
+    <section className="report-kpis">
+      <div><span>Total sales</span><strong>{money(sales)}</strong><small>Sold to customers · {periodName}</small></div>
+      <div><span>Total purchases</span><strong>{money(purchases)}</strong><small>Bought from suppliers · {periodName}</small></div>
+      <div><span>Cash received</span><strong>{money(collections)}</strong><small>Received from customers · {periodName}</small></div>
+      <div><span>Cash paid</span><strong>{money(payments)}</strong><small>Paid to suppliers · {periodName}</small></div>
+    </section>
+    <section className="report-insights">
+      <article><span className="eyebrow">COLLECTION PROGRESS</span><h2>Customer payments received</h2><strong>{collectionRate}%</strong><p>{money(collections)} received from {money(sales)} in sales during {periodName.toLowerCase()}.</p><div className="report-progress"><i style={{ width: `${collectionRate}%` }} /></div></article>
+      <article><span className="eyebrow">PAYMENT PROGRESS</span><h2>Supplier payments made</h2><strong>{supplierPaymentRate}%</strong><p>{money(payments)} paid from {money(purchases)} in purchases during {periodName.toLowerCase()}.</p><div className="report-progress supplier"><i style={{ width: `${supplierPaymentRate}%` }} /></div></article>
+      <article><span className="eyebrow">LIFETIME BALANCES</span><h2>Amounts still waiting</h2><div className="report-balance-pair"><span>Customers owe you <b>{money(customerDue)}</b></span><span>You owe suppliers <b>{money(supplierDue)}</b></span></div></article>
+    </section>
+    <section className="report-tables">
+      <article className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">CUSTOMER REPORT</span><h2>Top customers by sales</h2></div><button className="text-link" onClick={() => go("parties?type=customer")}>View customers <ArrowRight size={14} /></button></div><ReportRows rows={customers} parties={parties} type="customer" empty="No customer activity in this period." /></article>
+      <article className="reference-panel"><div className="panel-heading"><div><span className="eyebrow">SUPPLIER REPORT</span><h2>Top suppliers by purchases</h2></div><button className="text-link" onClick={() => go("parties?type=supplier")}>View suppliers <ArrowRight size={14} /></button></div><ReportRows rows={suppliers} parties={parties} type="supplier" empty="No supplier activity in this period." /></article>
+    </section>
+  </>;
+}
+
+function ReportRows({ rows, parties, type, empty }: { rows: { party: Party; value: number; paid: number; balance: number }[]; parties: Party[]; type: "customer" | "supplier"; empty: string }) {
+  return <div className="report-row-list">{rows.slice(0, 8).map((row) => <button key={row.party.id} type="button" onClick={() => go(partyPath(row.party, parties))}><span><strong>{row.party.name}</strong><small>{type === "customer" ? "Sales" : "Purchases"}: {money(row.value)} · {type === "customer" ? "Received" : "Paid"}: {money(row.paid)}</small></span><b className={row.balance > 0 ? "due" : ""}>{row.balance > 0 ? (type === "customer" ? "To collect " : "To pay ") : "Balance "}{money(Math.abs(row.balance))}</b></button>)}{rows.length === 0 && <p className="empty-state">{empty}</p>}</div>;
 }
 
 /* =========================================================
@@ -2177,7 +2242,7 @@ export default function App() {
   const [roleError, setRoleError] = useState("");
   const role = profile?.userId === authUserId ? profile.role : null;
   const restrictedRoute = role === "staff" &&
-    ["parties", "add-party", "edit-party", "add-entry"].includes(current.path);
+    ["parties", "add-party", "edit-party", "add-entry", "reports"].includes(current.path);
 
   const [parties, setParties] =
     useState<Party[]>([]);
@@ -2880,6 +2945,8 @@ export default function App() {
         role={role}
       />
     );
+  } else if (current.path === "reports") {
+    page = <Reports parties={parties} entries={entries} />;
   }
 
   const lifetimeBalances = balancesByParty(entries);

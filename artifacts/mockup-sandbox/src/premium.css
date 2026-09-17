@@ -51,6 +51,30 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .summary-grid span { color: #71717a; font-size: 12px; font-weight: 550; }
 .summary-grid strong { color: #1d1d1f; font-size: clamp(21px, 1.8vw, 29px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
 .summary-grid small { color: #92929a; }
+.report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 18px; }
+.report-kpis > div { min-width: 0; min-height: 136px; padding: 20px; border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
+.report-kpis span { display: block; color: #71717a; font-size: 12px; font-weight: 550; }
+.report-kpis strong { display: block; margin-top: 20px; color: #1d1d1f; font-size: clamp(20px, 1.8vw, 28px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; white-space: nowrap; }
+.report-kpis small { display: block; margin-top: 5px; color: #92929a; font-size: 10px; }
+.report-insights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 0 0 18px; }
+.report-insights article { min-width: 0; padding: 25px; border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
+.report-insights h2 { margin: 7px 0 14px; color: #28292f; font-size: 18px; letter-spacing: -.035em; }
+.report-insights > article > strong { display: block; color: #315f9f; font-size: 32px; letter-spacing: -.05em; }
+.report-insights p { min-height: 37px; margin: 8px 0 16px; color: #7b7c85; font-size: 11px; line-height: 1.45; }
+.report-progress { height: 10px; overflow: hidden; border-radius: 99px; background: #ececf1; }
+.report-progress i { display: block; height: 100%; border-radius: inherit; background: #55a99a; transition: width .35s ease; }
+.report-progress.supplier i { background: #d89c75; }
+.report-balance-pair { display: grid; gap: 13px; margin-top: 17px; }
+.report-balance-pair span { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; color: #666771; font-size: 11px; }
+.report-balance-pair b { color: #2c2d33; font-size: 15px; font-variant-numeric: tabular-nums; }
+.report-tables { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.report-row-list button { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 14px; padding: 16px 22px; border: 0; border-top: 1px solid #ededf0; background: #fff; color: #2e3037; text-align: left; }
+.report-row-list button:hover { background: #f8f9fb; }
+.report-row-list span { display: grid; gap: 5px; min-width: 0; }
+.report-row-list strong { font-size: 13px; font-weight: 650; }
+.report-row-list small { overflow: hidden; color: #8a8b94; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.report-row-list b { flex: 0 0 auto; color: #64656d; font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.report-row-list b.due { color: #a76449; }
 .analysis-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0 0 18px; }
 .analysis-chart-card { min-width: 0; padding: 26px 28px; border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
 .balance-chart-card { grid-column: 1 / -1; }
@@ -376,11 +400,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .form-actions { flex-wrap: wrap; }
 }
 @media (max-width: 900px) {
+  .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-insights, .report-tables { grid-template-columns: 1fr; }
   .analysis-charts { grid-template-columns: 1fr; }
   .balance-chart-card { grid-column: auto; }
   .business-health-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
+  .report-kpis { gap: 9px; margin-bottom: 14px; }
+  .report-kpis > div { min-height: 120px; padding: 15px; }
+  .report-kpis strong { margin-top: 15px; font-size: clamp(17px, 4.4vw, 22px); white-space: normal; }
+  .report-insights, .report-tables { gap: 14px; margin-bottom: 14px; }
+  .report-insights article { padding: 21px 17px; }
+  .report-row-list button { padding: 15px 17px; }
   .analysis-charts { gap: 14px; margin-bottom: 14px; }
   .analysis-chart-card { padding: 22px 17px; }
   .analysis-chart-heading { gap: 12px; }
