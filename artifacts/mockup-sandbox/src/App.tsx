@@ -522,8 +522,10 @@ function Table({
         <span>AMOUNT</span>
       </div>
 
-      {entries.map((entry) => (
-        <div className={`ledger-row${onSelect ? " selectable-ledger-row" : ""}${selectedIds?.has(entry.id) ? " is-selected" : ""}`} key={entry.id}>
+      {entries.map((entry) => {
+        const party = partyById.get(entry.partyId);
+        const tone = party?.partyType === "supplier" ? (entry.type === "PAYMENT" ? "payment-out" : "purchase") : (entry.type === "PAYMENT" ? "payment-in" : "sale");
+        return <div className={`ledger-row ${tone}${onSelect ? " selectable-ledger-row" : ""}${selectedIds?.has(entry.id) ? " is-selected" : ""}`} key={entry.id}>
           {onSelect && <input type="checkbox" className="transaction-select-checkbox" checked={selectedIds?.has(entry.id) ?? false} disabled={selectionDisabled} aria-label={`Select ${entry.type.toLowerCase()} of ${money(entry.amount)} on ${entry.bs} BS`} onChange={() => onSelect(entry)} />}
           <span>
             <b>{entry.ad}</b>
@@ -531,22 +533,22 @@ function Table({
           </span>
 
           <span>
-            <b>{partyById.get(entry.partyId)?.name ?? "Unknown party"}</b>
+            <b>{party?.name ?? "Unknown party"}</b>
 
             <small>
-              {partyById.get(entry.partyId)?.company}
+              {party?.company}
             </small>
           </span>
 
-          <span className={`type ${entry.type.toLowerCase()}`}>
-            {entryLabel(entry, partyById.get(entry.partyId))}
+          <span className={`type ${tone}`}>
+            {entryLabel(entry, party)}
           </span>
 
           <span>{entryDescription(entry) || "—"}</span>
 
           <strong>{money(entry.amount)}</strong>
-        </div>
-      ))}
+        </div>;
+      })}
       {entries.length === 0 && <p className="empty-state">{emptyMessage}</p>}
     </div>
   );
@@ -637,7 +639,7 @@ function Dashboard({
         {invalidRange && <p className="range-error">The start date must be on or before the end date.</p>}
       </section>
 
-      <section className="summary-grid">
+      <section className="summary-grid dashboard-summary">
         <div>
           <span>Sold to customers</span>
           <strong>{money(sales)}</strong>
@@ -2091,7 +2093,7 @@ function PartyDetail({
         </div>
       </div>
 
-      <section className="summary-grid">
+      <section className={`summary-grid party-summary ${party.partyType}`}>
         <div>
           <span>{primaryLabel}</span>
           <strong>
