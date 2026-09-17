@@ -270,7 +270,7 @@ function Shell({
         <footer className="sidebar-snapshot">
           <span className="sidebar-snapshot-heading">LEDGER AT A GLANCE</span>
           <strong>{money(snapshot.outstanding)}</strong>
-          <small>Outstanding to collect</small>
+          <small>Lifetime outstanding to collect</small>
           <div className="sidebar-snapshot-meta">
             <span>{snapshot.partyCount} {snapshot.partyCount === 1 ? "party" : "parties"}</span>
             <span>{snapshot.todayBs} BS</span>
@@ -540,9 +540,6 @@ function Dashboard({
   const periodEntries = period === "lifetime" ? entries : invalidRange ? [] : entries.filter(
     (entry) => entry.bs >= range.from && entry.bs <= range.to,
   );
-  const entriesAsOfEnd = period === "lifetime" ? entries : invalidRange ? [] : entries.filter(
-    (entry) => entry.bs <= range.to,
-  );
   const purchased = periodEntries
     .filter((entry) => entry.type === "PURCHASE")
     .reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
@@ -555,7 +552,7 @@ function Dashboard({
   const paymentShare = totalActivityCents ? 100 - purchaseShare : 0;
 
   const dueParties = parties
-    .map((party) => ({ party, balance: balanceOf(entriesAsOfEnd, party.id) }))
+    .map((party) => ({ party, balance: balanceOf(periodEntries, party.id) }))
     .filter(({ balance }) => balance > 0)
     .sort((a, b) => b.balance - a.balance);
   const outstanding = dueParties.reduce((total, item) => total + toCents(item.balance), 0) / 100;
@@ -603,7 +600,7 @@ function Dashboard({
             {money(outstanding)}
           </strong>
 
-          <small>{period === "lifetime" ? "Current balance across all records" : `As of ${range.to} BS`}</small>
+          <small>{period === "lifetime" ? "Across all records" : "In the selected period"}</small>
         </div>
 
         <div>
@@ -678,7 +675,7 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                {period === "lifetime" ? "CURRENT BALANCES" : "AS OF PERIOD END"}
+                {period === "lifetime" ? "CURRENT BALANCES" : "IN THIS PERIOD"}
               </span>
 
               <h2>Outstanding balances</h2>
@@ -715,7 +712,7 @@ function Dashboard({
               </div>
             ))}
           {dueParties.length === 0 && (
-            <p className="empty-state">{period === "lifetime" ? "No outstanding balances." : "No outstanding balances as of this date."}</p>
+            <p className="empty-state">{period === "lifetime" ? "No outstanding balances." : "No outstanding balances in this date range."}</p>
           )}
         </section>
       </div>
