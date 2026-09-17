@@ -1042,6 +1042,29 @@ function FormField({
   );
 }
 
+function PartyTypePicker({
+  value,
+  onChange,
+}: {
+  value: Party["partyType"];
+  onChange: (value: Party["partyType"]) => void;
+}) {
+  return (
+    <div className="party-type-picker" role="radiogroup" aria-label="Party type">
+      {(["customer", "supplier"] as const).map((partyType) => {
+        const selected = value === partyType;
+        return (
+          <label key={partyType} className={selected ? "selected" : ""}>
+            <input type="radio" name="party-type" value={partyType} checked={selected} onChange={() => onChange(partyType)} />
+            <span className="party-type-check" aria-hidden="true"><Check size={13} /></span>
+            <span>{partyType === "customer" ? "Customer" : "Supplier"}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 /* =========================================================
    ADD PARTY
    ========================================================= */
@@ -1111,12 +1134,10 @@ function AddParty({
         <h2>Party information</h2>
 
         <div className="form-grid">
-          <FormField label="Party type *">
-            <select value={form.partyType} onChange={(event) => setForm({ ...form, partyType: event.target.value as Party["partyType"] })}>
-              <option value="customer">Customer</option>
-              <option value="supplier">Supplier</option>
-            </select>
-          </FormField>
+          <div className="form-field">
+            <span>Party type *</span>
+            <PartyTypePicker value={form.partyType} onChange={(partyType) => setForm({ ...form, partyType })} />
+          </div>
           <FormField label="Party name *">
             <input
               required
@@ -1386,11 +1407,11 @@ function AddEntry({
         )}
 
         <div className="form-grid transaction-form-grid">
-          <FormField label="Party type *">
-            <select
+          <div className="form-field">
+            <span>Party type *</span>
+            <PartyTypePicker
               value={counterpartyType}
-              onChange={(event) => {
-                const nextType = event.target.value as Party["partyType"];
+              onChange={(nextType) => {
                 setCounterpartyType(nextType);
                 setForm((current) => ({ ...current, partyId: "", paidNow: "" }));
                 setPartyQuery("");
@@ -1398,11 +1419,8 @@ function AddEntry({
                 setPartySuggestionsOpen(false);
                 setActivePartySuggestion(0);
               }}
-            >
-              <option value="customer">Customer</option>
-              <option value="supplier">Supplier</option>
-            </select>
-          </FormField>
+            />
+          </div>
 
           <div className="form-field">
             <label htmlFor="entry-party-search">Party *</label>
@@ -1822,12 +1840,10 @@ function EditParty({
         <h2>Party information</h2>
 
         <div className="form-grid">
-          <FormField label="Party type *">
-            <select value={form.partyType} onChange={(event) => setForm({ ...form, partyType: event.target.value as Party["partyType"] })}>
-              <option value="customer">Customer</option>
-              <option value="supplier">Supplier</option>
-            </select>
-          </FormField>
+          <div className="form-field">
+            <span>Party type *</span>
+            <PartyTypePicker value={form.partyType} onChange={(partyType) => setForm({ ...form, partyType })} />
+          </div>
           <FormField label="Party name *">
             <input
               required
