@@ -12,6 +12,7 @@ import {
   AlertCircle,
   BarChart3,
   CheckCircle2,
+  CalendarDays,
   Check,
   Download,
   FileText,
@@ -105,7 +106,8 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 }
 
 async function downloadPdf(filename: string, bytes: Uint8Array) {
-  const file = new File([bytes], filename, { type: "application/pdf" });
+  const safeBytes = Uint8Array.from(bytes);
+  const file = new File([safeBytes.buffer], filename, { type: "application/pdf" });
   if (navigator.canShare?.({ files: [file] })) {
     await navigator.share({ files: [file], title: filename });
     return;
@@ -1244,6 +1246,7 @@ function AddEntry({
   const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
   const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
   const [activePartySuggestion, setActivePartySuggestion] = useState(0);
+  const englishDateInputRef = useRef<HTMLInputElement>(null);
   const selectedParty = parties.find((party) => party.id === form.partyId);
   const isSupplier = selectedParty?.partyType === "supplier";
   const primaryTransactionLabel = isSupplier ? "Purchase" : "Sale";
@@ -1478,12 +1481,16 @@ function AddEntry({
               <small>Select a date from the Nepali calendar.</small>
             </div>
             <FormField label="English date (AD) *">
-              <input
-                type="date"
-                required
-                value={form.ad}
-                onChange={(event) => changeEnglishDate(event.target.value)}
-              />
+              <div className="ad-date-picker">
+                <input
+                  ref={englishDateInputRef}
+                  type="date"
+                  required
+                  value={form.ad}
+                  onChange={(event) => changeEnglishDate(event.target.value)}
+                />
+                <button type="button" aria-label="Open English date picker" onClick={() => englishDateInputRef.current?.showPicker()}><CalendarDays size={18} aria-hidden="true" /></button>
+              </div>
               <small>Changing either date updates the other automatically.</small>
               {dateError && <small className="field-error" role="alert">{dateError}</small>}
             </FormField>

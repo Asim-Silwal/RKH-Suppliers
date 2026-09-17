@@ -229,6 +229,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .list-load-more { display: block; width: 100%; padding: 15px; border: 0; border-top: 1px solid #e7eaf0; background: #fff; color: #315f9f; font-size: 12px; font-weight: 600; cursor: pointer; }
 .list-load-more:hover { background: #f4f7fc; }
 .entry-party-search { position: relative; display: flex; align-items: center; min-width: 0; }
+.entry-context { display: grid; gap: 4px; margin: -4px 0 20px; padding: 12px 14px; border: 1px solid #dfe4ea; border-radius: 10px; background: #f8f9fb; color: #5d6470; }
+.entry-context strong { color: #343942; font-size: 12px; }
+.entry-context span { font-size: 11px; line-height: 1.45; }
+.entry-context.customer { border-color: #d8e5f7; background: #f4f8fe; }
+.entry-context.supplier { border-color: #eadccf; background: #fffbf6; }
+.entry-party-search { display: block; }
+.entry-party-help { display: block; margin-top: 6px; color: #858b96 !important; font-size: 10px !important; line-height: 1.35; }
 .form-panel .entry-party-search input { padding-right: 40px; }
 .entry-party-search .party-search-clear { position: absolute; right: 9px; }
 .entry-party-search .party-suggestions { top: calc(100% + 6px); left: 0; width: 100%; }
@@ -251,6 +258,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .form-notice { border-color: #dedee3; background: #f7f7f8; color: #34343b; }
 
 .bs-date-trigger svg, .bs-calendar-heading > button, .bs-calendar-footer button { color: #45454c; }
+.ad-date-picker { position: relative; }
+.ad-date-picker input { min-height: 44px; padding-right: 44px !important; }
+.ad-date-picker input::-webkit-calendar-picker-indicator { opacity: 0; }
+.ad-date-picker button { position: absolute; top: 50%; right: 7px; display: grid; width: 32px; height: 32px; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #3268b2; transform: translateY(-50%); }
+.ad-date-picker button:hover { background: #edf3fc; }
+.bs-date-trigger svg { color: #3268b2; }
 .bs-calendar { border-color: #e1e1e5; box-shadow: 0 16px 40px rgba(28,28,32,.12); }
 .bs-calendar-heading > button:hover:not(:disabled), .bs-calendar-grid button:hover { background: #f1f1f3; }
 .bs-calendar-selects select { background: #f1f1f3; color: #34343b; }
