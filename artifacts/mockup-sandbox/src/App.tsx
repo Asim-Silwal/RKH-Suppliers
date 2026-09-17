@@ -159,6 +159,11 @@ const matchingParties = (parties: Party[], query: string) =>
 
 const partyPhoneIsValid = (contact: string) => !contact.trim() || /^\d{10}$/.test(contact.trim());
 
+const partySaveErrorMessage = (message: string) =>
+  /party_type/i.test(message)
+    ? "Supplier setup needs the party type database update. Apply the included Supabase migration, then try again."
+    : message || "Please try again.";
+
 const balancesByParty = (entries: Entry[]) => {
   const balances = new Map<string, number>();
   for (const entry of entries) {
@@ -2595,7 +2600,7 @@ export default function App() {
 
     if (error) {
       console.error(error);
-      showNotice("Could not save party", error.message || "Please try again.", "error");
+      showNotice("Could not save party", partySaveErrorMessage(error.message), "error");
 
       return false;
     }
@@ -2662,7 +2667,7 @@ export default function App() {
 
     if (error) {
       console.error(error);
-      showNotice("Could not update party", error.message || "Please try again.", "error");
+      showNotice("Could not update party", partySaveErrorMessage(error.message), "error");
 
       return false;
     }
