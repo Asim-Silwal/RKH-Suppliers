@@ -51,6 +51,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .summary-grid span { color: #71717a; font-size: 12px; font-weight: 550; }
 .summary-grid strong { color: #1d1d1f; font-size: clamp(21px, 1.8vw, 29px); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -.045em; }
 .summary-grid small { color: #92929a; }
+.analysis-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0 0 18px; }
+.analysis-chart-card { min-width: 0; padding: 26px 28px; border: 1px solid #e3e3e8; border-radius: 16px; background: #fff; box-shadow: 0 3px 16px rgba(28,28,32,.035); }
+.balance-chart-card { grid-column: 1 / -1; }
+.analysis-chart-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.analysis-chart-heading h2 { margin: 7px 0 5px; color: #242428; font-size: 19px; letter-spacing: -.035em; }
+.analysis-chart-heading p { max-width: 330px; margin: 0; color: #85858d; font-size: 12px; line-height: 1.45; }
+.analysis-chart-heading > strong { flex: 0 0 auto; color: #315f9f; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.035em; white-space: nowrap; }
+.analysis-chart-heading > strong.negative { color: #a35252; }
+.comparison-bars { display: grid; gap: 15px; margin-top: 25px; }
+.comparison-bars > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; align-items: center; }
+.comparison-bars span { display: inline-flex; align-items: center; gap: 8px; color: #555762; font-size: 12px; font-weight: 600; }
+.comparison-bars b { color: #2b2c31; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.comparison-bars em { grid-column: 1 / -1; display: block; height: 9px; overflow: hidden; border-radius: 99px; background: #eeeeF1; }
+.comparison-bars em > i { display: block; min-width: 0; height: 100%; border-radius: inherit; background: #315f9f; transition: width .35s ease; }
+.comparison-bars > div:nth-child(2) em > i { background: #d89c75; }
+.chart-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #315f9f; }
+.chart-dot.purchases, .chart-dot.paid { background: #d89c75; }
+.chart-dot.received { background: #55a99a; }
+.chart-caption { display: block; margin-top: 18px; color: #94949c; font-size: 10px; }
+.balance-chart-content { display: flex; align-items: center; justify-content: center; gap: clamp(30px, 8vw, 105px); margin-top: 18px; }
+.balance-donut { display: grid; flex: 0 0 150px; width: 150px; height: 150px; place-items: center; border-radius: 50%; }
+.balance-donut > div { display: grid; width: 108px; height: 108px; place-items: center; align-content: center; border-radius: 50%; background: #fff; }
+.balance-donut strong { color: #24252a; font-size: 26px; letter-spacing: -.05em; }
+.balance-donut small { margin-top: 1px; color: #8c8c94; font-size: 10px; }
+.balance-key { display: grid; gap: 16px; min-width: min(290px, 100%); }
+.balance-key span { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; color: #5f606a; font-size: 12px; }
+.balance-key b { grid-column: 2; color: #292a30; font-size: 16px; font-variant-numeric: tabular-nums; }
 .activity-card { --chart-purchase: #315f9f; --chart-payment: #8ab3df; min-height: 260px; padding: 34px 40px; }
 .activity-chart { width: 200px; height: 200px; flex-basis: 200px; }
 .activity-chart > div { width: 148px; height: 148px; }
@@ -349,9 +376,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .form-actions { flex-wrap: wrap; }
 }
 @media (max-width: 900px) {
+  .analysis-charts { grid-template-columns: 1fr; }
+  .balance-chart-card { grid-column: auto; }
   .business-health-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 600px) {
+  .analysis-charts { gap: 14px; margin-bottom: 14px; }
+  .analysis-chart-card { padding: 22px 17px; }
+  .analysis-chart-heading { gap: 12px; }
+  .analysis-chart-heading h2 { font-size: 18px; }
+  .analysis-chart-heading > strong { font-size: 14px; }
+  .balance-chart-content { align-items: stretch; flex-direction: column; gap: 20px; }
+  .balance-donut { align-self: center; }
+  .balance-key { min-width: 0; }
   .business-health { margin-bottom: 14px; padding: 22px 17px; }
   .business-health-heading h2 { font-size: 20px; }
   .business-health-metrics { gap: 9px; margin-top: 19px; }

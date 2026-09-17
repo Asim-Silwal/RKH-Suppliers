@@ -577,6 +577,12 @@ function Dashboard({
   const totalReceivables = receivables.reduce((total, item) => total + item.balance, 0);
   const totalPayables = payables.reduce((total, item) => total + item.balance, 0);
   const cashMovement = collections - supplierPayments;
+  const salesAndPurchases = sales + purchases;
+  const moneyInAndOut = collections + supplierPayments;
+  const balancesDue = totalReceivables + totalPayables;
+  const salesShare = salesAndPurchases ? Math.round(sales / salesAndPurchases * 100) : 0;
+  const collectionShare = moneyInAndOut ? Math.round(collections / moneyInAndOut * 100) : 0;
+  const receivableShare = balancesDue ? Math.round(totalReceivables / balancesDue * 100) : 0;
   const periodName = period === "custom" ? "Custom range" : period === "lifetime" ? "Lifetime" : `This ${period}`;
   const recentEntries = [...periodEntries].sort((a, b) => b.ad.localeCompare(a.ad)).slice(0, 6);
 
@@ -616,32 +622,60 @@ function Dashboard({
 
       <section className="summary-grid">
         <div>
-          <span>Sales</span>
+          <span>Sold to customers</span>
           <strong>{money(sales)}</strong>
           <small>{periodName}</small>
         </div>
         <div>
-          <span>Purchases</span>
+          <span>Bought from suppliers</span>
           <strong>{money(purchases)}</strong>
           <small>{periodName}</small>
         </div>
         <div>
-          <span>Customer collections</span>
+          <span>Money received</span>
           <strong>{money(collections)}</strong>
           <small>{periodName}</small>
         </div>
         <div>
-          <span>Supplier payments</span>
+          <span>Money paid out</span>
           <strong>{money(supplierPayments)}</strong>
           <small>{periodName}</small>
         </div>
       </section>
 
+      <section className="analysis-charts" aria-label="Business charts">
+        <article className="analysis-chart-card">
+          <div className="analysis-chart-heading"><div><span className="eyebrow">TRADING ACTIVITY</span><h2>Sales compared with purchases</h2><p>How much was sold and bought in {periodName.toLowerCase()}.</p></div><strong className={sales - purchases < 0 ? "negative" : ""}>{sales - purchases < 0 ? "−" : "+"}{money(Math.abs(sales - purchases))}</strong></div>
+          <div className="comparison-bars" role="img" aria-label={`Sales ${money(sales)} and purchases ${money(purchases)}`}>
+            <div><span><i className="chart-dot sales" />Sales</span><b>{money(sales)}</b><em><i style={{ width: `${salesShare}%` }} /></em></div>
+            <div><span><i className="chart-dot purchases" />Purchases</span><b>{money(purchases)}</b><em><i style={{ width: `${100 - salesShare}%` }} /></em></div>
+          </div>
+          <small className="chart-caption">Difference between sales and purchases</small>
+        </article>
+
+        <article className="analysis-chart-card">
+          <div className="analysis-chart-heading"><div><span className="eyebrow">CASH MOVEMENT</span><h2>Money in compared with money out</h2><p>Payments received from customers and paid to suppliers.</p></div><strong className={cashMovement < 0 ? "negative" : ""}>{cashMovement < 0 ? "−" : "+"}{money(Math.abs(cashMovement))}</strong></div>
+          <div className="comparison-bars" role="img" aria-label={`Money received ${money(collections)} and money paid ${money(supplierPayments)}`}>
+            <div><span><i className="chart-dot received" />Received</span><b>{money(collections)}</b><em><i style={{ width: `${collectionShare}%` }} /></em></div>
+            <div><span><i className="chart-dot paid" />Paid out</span><b>{money(supplierPayments)}</b><em><i style={{ width: `${100 - collectionShare}%` }} /></em></div>
+          </div>
+          <small className="chart-caption">Net money movement: customer payments minus supplier payments</small>
+        </article>
+
+        <article className="analysis-chart-card balance-chart-card">
+          <div className="analysis-chart-heading"><div><span className="eyebrow">AMOUNTS STILL DUE</span><h2>Money to collect and pay</h2><p>Balances from all recorded transactions.</p></div></div>
+          <div className="balance-chart-content">
+            <div className="balance-donut" role="img" aria-label={`Customers owe ${money(totalReceivables)} and suppliers are owed ${money(totalPayables)}`} style={{ background: balancesDue ? `conic-gradient(#315f9f 0 ${receivableShare}%, #d89c75 ${receivableShare}% 100%)` : "#ececf0" }}><div><strong>{balancesDue ? `${receivableShare}%` : "—"}</strong><small>to collect</small></div></div>
+            <div className="balance-key"><span><i className="chart-dot sales" />Customers owe you <b>{money(totalReceivables)}</b></span><span><i className="chart-dot paid" />You owe suppliers <b>{money(totalPayables)}</b></span></div>
+          </div>
+        </article>
+      </section>
+
       <section className="business-health" aria-label="Business health overview">
-        <div className="business-health-heading"><span className="eyebrow">BUSINESS POSITION</span><h2>What needs attention</h2><p>Balances are calculated from all recorded transactions.</p></div>
+        <div className="business-health-heading"><span className="eyebrow">BUSINESS POSITION</span><h2>What the business is owed and owes</h2><p>Balances are calculated from all recorded transactions.</p></div>
         <div className="business-health-metrics">
-          <div><span>Customer receivables</span><strong>{money(totalReceivables)}</strong><small>{receivables.length} customer{receivables.length === 1 ? "" : "s"} with amounts due</small></div>
-          <div><span>Supplier payables</span><strong>{money(totalPayables)}</strong><small>{payables.length} supplier{payables.length === 1 ? "" : "s"} awaiting payment</small></div>
+          <div><span>Customers owe you</span><strong>{money(totalReceivables)}</strong><small>{receivables.length} customer{receivables.length === 1 ? "" : "s"} with amounts due</small></div>
+          <div><span>You owe suppliers</span><strong>{money(totalPayables)}</strong><small>{payables.length} supplier{payables.length === 1 ? "" : "s"} awaiting payment</small></div>
           <div><span>Net cash movement</span><strong className={cashMovement < 0 ? "negative" : ""}>{cashMovement < 0 ? "−" : "+"}{money(Math.abs(cashMovement))}</strong><small>Customer collections less supplier payments · {periodName}</small></div>
           <div><span>Active accounts</span><strong>{parties.length}</strong><small>{parties.filter((party) => party.partyType === "customer").length} customers · {parties.filter((party) => party.partyType === "supplier").length} suppliers</small></div>
         </div>
@@ -678,10 +712,10 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <span className="eyebrow">
-                CURRENT BALANCES
+                MONEY TO COLLECT
               </span>
 
-              <h2>Customer receivables</h2>
+              <h2>Customers who need to pay</h2>
             </div>
 
             {role === "admin" && <button
@@ -719,7 +753,7 @@ function Dashboard({
           )}
         </section>
         <section className="reference-panel dashboard-payables">
-          <div className="panel-heading"><div><span className="eyebrow">SUPPLIER OBLIGATIONS</span><h2>Supplier payables</h2></div></div>
+          <div className="panel-heading"><div><span className="eyebrow">MONEY TO PAY</span><h2>Suppliers you need to pay</h2></div></div>
           {payables.slice(0, 6).map(({ party, balance }) => role === "admin" ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
           {payables.length === 0 && <p className="empty-state">No supplier payments are due.</p>}
         </section>
