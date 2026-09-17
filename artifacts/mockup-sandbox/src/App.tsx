@@ -1394,11 +1394,6 @@ function AddEntry({
       >
         <h2>Transaction details</h2>
 
-        <div className={`entry-context ${counterpartyType}`}>
-          <strong>{isSupplier ? "Supplier transaction" : "Customer transaction"}</strong>
-          <span>{isSupplier ? "Choose a supplier, then select Purchase or Payment made." : "Choose a customer, then select Sale or Payment received."}</span>
-        </div>
-
         {parties.length === 0 && (
           <div className="form-notice">
             Add a party before recording a transaction.
