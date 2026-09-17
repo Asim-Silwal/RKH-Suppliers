@@ -1389,7 +1389,7 @@ function AddEntry({
       />
 
       <form
-        className="form-panel"
+        className="form-panel transaction-form"
         onSubmit={submit}
       >
         <h2>Transaction details</h2>
