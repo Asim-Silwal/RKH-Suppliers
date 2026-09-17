@@ -88,29 +88,16 @@ const money = (value: number) =>
     maximumFractionDigits: 2,
   })}`;
 
-function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-  const cell = (value: string | number) => {
-    if (typeof value === "number") return value.toFixed(2);
-    const safe = /^\s*[=+\-@]/.test(value) ? `'${value}` : value;
-    return `"${safe.replaceAll('"', '""')}"`;
-  };
-  const csv = `\uFEFF${[headers, ...rows].map((row) => row.map(cell).join(",")).join("\r\n")}\r\n`;
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
 async function downloadPdf(filename: string, bytes: Uint8Array) {
   const safeBytes = Uint8Array.from(bytes);
   const file = new File([safeBytes.buffer], filename, { type: "application/pdf" });
   if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: filename });
-    return;
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
+    }
   }
 
   const url = URL.createObjectURL(file);
@@ -796,6 +783,7 @@ function Dashboard({
 
 function Reports({ parties, entries }: { parties: Party[]; entries: Entry[] }) {
   const [period, setPeriod] = useState<DashboardPeriod>("month");
+  const [exporting, setExporting] = useState(false);
   const [customFrom, setCustomFrom] = useState(() => currentBsRange("month").from);
   const [customTo, setCustomTo] = useState(() => todayDates().bs);
   const range = period === "custom" ? { from: customFrom, to: customTo } : currentBsRange(period === "lifetime" ? "month" : period);
@@ -843,10 +831,25 @@ function Reports({ parties, entries }: { parties: Party[]; entries: Entry[] }) {
     return groups;
   }, new Map<string, { bs: string; sales: number; purchases: number; count: number }>()).values()).sort((a, b) => a.bs.localeCompare(b.bs)).slice(-12);
   const activityPeak = Math.max(1, ...dailyActivity.flatMap((day) => [day.sales, day.purchases]));
-  const exportReport = () => downloadCsv(`rkh-detailed-report-${period === "lifetime" ? "lifetime" : range.from}.csv`, ["Account type", "Party", "Sales or purchases (NPR)", "Payments (NPR)", "Average value (NPR)", "Transactions", "Lifetime balance (NPR)"], accountRows.map((row) => [row.party.partyType === "supplier" ? "Supplier" : "Customer", row.party.name, row.value, row.paid, row.averageValue, row.transactionCount, row.balance]));
+  const exportReport = async () => {
+    setExporting(true);
+    try {
+      const [{ createLedgerExportPdf }, fontResponse] = await Promise.all([import("./lib/ledgerExportPdf"), fetch(statementFontUrl)]);
+      if (!fontResponse.ok) throw new Error("Could not load the export font.");
+      const pdf = await createLedgerExportPdf({
+        title: "Business detailed report",
+        period: period === "lifetime" ? "Lifetime - all recorded dates" : `${periodName} - ${range.from} to ${range.to} BS`,
+        headers: ["Account type", "Party", "Sales / purchases", "Payments", "Average value", "Transactions", "Lifetime balance"],
+        rows: accountRows.map((row) => [row.party.partyType === "supplier" ? "Supplier" : "Customer", row.party.name, money(row.value), money(row.paid), money(row.averageValue), String(row.transactionCount), money(row.balance)]),
+      }, new Uint8Array(await fontResponse.arrayBuffer()));
+      await downloadPdf(pdfFilename(`rkh-business-report-${period === "lifetime" ? "lifetime" : range.from}`), new Uint8Array(pdf));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return <>
-    <Header eyebrow="BUSINESS REPORTS" title="Reports" description="Detailed reports for account performance, transaction patterns, and payment efficiency." action={exportReport} label="Download report" />
+    <Header eyebrow="BUSINESS REPORTS" title="Reports" description="Detailed reports for account performance, transaction patterns, and payment efficiency." action={exportReport} label={exporting ? "Preparing PDF..." : "Download PDF"} />
     <section className="dashboard-filter" aria-label="Report date range">
       <div className="period-tabs" role="group" aria-label="Report date range preset">{(["week", "month", "year", "lifetime", "custom"] as const).map((item) => <button type="button" key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>
       <span className="period-range">{period === "lifetime" ? "Lifetime · All recorded dates" : `${periodName} · ${range.from} to ${range.to} BS`}</span>
@@ -1041,6 +1044,8 @@ function FormField({
     </label>
   );
 }
+
+const pdfFilename = (name: string) => `${name.trim().replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, "-").toLowerCase() || "rkh-export"}.pdf`;
 
 function PartyTypePicker({
   value,
@@ -1610,6 +1615,7 @@ function Transactions({
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
+  const [exporting, setExporting] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [type, setType] =
@@ -1657,6 +1663,29 @@ function Transactions({
     },
   );
 
+  const exportStatement = async () => {
+    if (!shown.length) return;
+    setExporting(true);
+    try {
+      const [{ createLedgerExportPdf }, fontResponse] = await Promise.all([import("./lib/ledgerExportPdf"), fetch(statementFontUrl)]);
+      if (!fontResponse.ok) throw new Error("Could not load the export font.");
+      const primaryEntries = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+      const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+      const pdf = await createLedgerExportPdf({
+        title: "Transaction statement",
+        period: from || to ? `${from || "Beginning"} to ${to || todayDates().bs} BS` : "All current statement results",
+        headers: ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Sales / purchases", "Payments"],
+        rows: [
+          ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entryLabel(entry, partyById.get(entry.partyId)), entryDescription(entry), entry.type === "PURCHASE" ? money(entry.amount) : "", entry.type === "PAYMENT" ? money(entry.amount) : ""]),
+          ["TOTAL", "", "", "", "", money(primaryEntries), money(payments)],
+        ],
+      }, new Uint8Array(await fontResponse.arrayBuffer()));
+      await downloadPdf(pdfFilename(`rkh-transaction-statement-${todayDates().bs}`), new Uint8Array(pdf));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <>
       <Header
@@ -1670,22 +1699,11 @@ function Transactions({
       <div className="transaction-actions">
         <button
           className="outline-button"
-          disabled={shown.length === 0}
-          onClick={() => {
-            const primaryEntries = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-            const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
-            downloadCsv(
-              `rkh-statement-${todayDates().bs}.csv`,
-              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Sales / Purchases (NPR)", "Payments (NPR)"],
-              [
-                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entryLabel(entry, partyById.get(entry.partyId)), entryDescription(entry), entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
-                ["TOTAL", "", "", "", "", primaryEntries, payments],
-              ],
-            );
-          }}
+          disabled={shown.length === 0 || exporting}
+          onClick={exportStatement}
         >
           <Download size={15} />
-          Download CSV
+          {exporting ? "Preparing PDF..." : "Download PDF"}
         </button>
       </div>
 
@@ -2020,7 +2038,7 @@ function PartyDetail({
       ]);
       if (!fontResponse.ok) throw new Error("Could not load the statement font.");
       const pdf = await createPartyStatementPdf(party, rows, new Uint8Array(await fontResponse.arrayBuffer()));
-      const filename = `${party.name.trim().replace(/[\\/:*?"<>|]/g, "-") || "customer"}.pdf`;
+      const filename = pdfFilename(`${party.name}-statement`);
       await downloadPdf(filename, new Uint8Array(pdf));
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
