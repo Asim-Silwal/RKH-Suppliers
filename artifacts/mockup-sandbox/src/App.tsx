@@ -30,6 +30,7 @@ import {
 
 import { supabase } from "./lib/supabase";
 import { NepaliDatePicker, todayDates } from "./components/NepaliDatePicker";
+import { EnglishDatePicker } from "./components/EnglishDatePicker";
 import NepaliDate from "nepali-date-converter";
 import ledgerMark from "./assets/rkh-ledger-mark.svg";
 import statementFontUrl from "./assets/NotoSansDevanagariUI-Regular.ttf?url";
@@ -1284,7 +1285,6 @@ function AddEntry({
   const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
   const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
   const [activePartySuggestion, setActivePartySuggestion] = useState(0);
-  const englishDateInputRef = useRef<HTMLInputElement>(null);
   const isSupplier = counterpartyType === "supplier";
   const primaryTransactionLabel = isSupplier ? "Purchase" : "Sale";
   const paymentTransactionLabel = isSupplier ? "Payment made" : "Payment received";
@@ -1529,16 +1529,7 @@ function AddEntry({
               <small>Select a date from the Nepali calendar.</small>
             </div>
             <FormField label="English date (AD) *">
-              <div className="ad-date-picker">
-                <input
-                  ref={englishDateInputRef}
-                  type="date"
-                  required
-                  value={form.ad}
-                  onChange={(event) => changeEnglishDate(event.target.value)}
-                />
-                <button type="button" aria-label="Open English date picker" onClick={() => englishDateInputRef.current?.showPicker()}><CalendarDays size={18} aria-hidden="true" /></button>
-              </div>
+              <EnglishDatePicker value={form.ad} onChange={changeEnglishDate} />
               <small>Changing either date updates the other automatically.</small>
               {dateError && <small className="field-error" role="alert">{dateError}</small>}
             </FormField>
