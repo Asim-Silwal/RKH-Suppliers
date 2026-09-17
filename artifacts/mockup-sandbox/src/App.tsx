@@ -243,6 +243,11 @@ function Shell({
   const [editing, setEditing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [contentKey]);
+  useEffect(() => {
     if (!menuOpen) return;
     const dismiss = (event: MouseEvent) => {
       if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
