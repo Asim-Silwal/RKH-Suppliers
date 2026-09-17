@@ -2240,50 +2240,15 @@ function Login() {
 
   return (
     <div className="login-page">
-      <div className="login-shell">
-        <section className="login-brand">
-          <div>
-            <img className="login-logo brand-mark" src={ledgerMark} alt="" />
-
-            <p className="login-kicker">
-              RKH LEDGER
-            </p>
-
-            <h1>
-              Your business ledger.
-            </h1>
-
-            <p className="login-intro">
-              Keep sales, payments, and party balances organized in one secure place.
-            </p>
-          </div>
-
-          <div className="login-brand-footer">
-            <span>
-              FAMILY BUSINESS
-            </span>
-
-            <span>
-              KATHMANDU, NEPAL
-            </span>
-          </div>
-        </section>
-
-        <section className="login-form-side">
-          <form
-            className="login-panel"
-            onSubmit={submit}
-          >
+      <main className="login-shell">
+        <form className="login-panel" onSubmit={submit}>
+            <div className="login-lockup">
+              <img className="login-logo brand-mark" src={ledgerMark} alt="RKH Ledger" />
+              <span>RKH Ledger</span>
+            </div>
             <div className="login-heading">
-              <span className="login-kicker">
-                PRIVATE ACCESS
-              </span>
-
-              <h2>Sign in</h2>
-
-              <p>
-                Use your account credentials to access the ledger.
-              </p>
+              <h1>Sign in</h1>
+              <p>Use your RKH Suppliers account to continue.</p>
             </div>
 
             <div className="login-fields">
@@ -2343,9 +2308,9 @@ function Login() {
             <p className="login-security">
               Authorized access for RKH Suppliers.
             </p>
-          </form>
-        </section>
-      </div>
+            <p className="login-footnote">RKH Suppliers · Kathmandu, Nepal</p>
+        </form>
+      </main>
     </div>
   );
 }

@@ -671,3 +671,24 @@ body, .reference-app { background: #f5f5f7; }
 .delete-confirm-actions .delete-button { border-color: #bc4242; background: #bc4242; color: #fff; box-shadow: 0 6px 16px rgba(188, 66, 66, .18); }
 .delete-confirm-actions .delete-button:hover { border-color: #a93434; background: #a93434; color: #fff; }
 @media (max-width: 600px) { .delete-confirm-dialog { width: min(390px, calc(100vw - 28px)); padding: 21px; } .delete-confirm-dialog > p { margin-left: 0; } }
+
+/* Account sign-in: quiet, centered, and deliberately focused. */
+.login-page { min-height: 100dvh; padding: 32px 20px; background: #f5f5f7; }
+.login-shell { display: block; width: min(100%, 430px); min-height: 0; overflow: visible; border: 1px solid #d9d9de; border-radius: 18px; background: rgba(255, 255, 255, .92); box-shadow: 0 18px 44px rgba(0, 0, 0, .08); }
+.login-panel { width: 100%; max-width: none; padding: 42px; }
+.login-lockup { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 33px; color: #1d1d1f; font-size: 17px; font-weight: 650; letter-spacing: -.03em; }
+.login-lockup .login-logo { width: 38px; height: 38px; margin: 0; border-radius: 10px; }
+.login-heading { margin-bottom: 28px; text-align: center; }
+.login-heading h1 { margin: 0 0 8px; color: #1d1d1f; font-size: 29px; font-weight: 650; letter-spacing: -.045em; }
+.login-heading p { color: #6e6e73; font-size: 14px; line-height: 1.45; }
+.login-fields { gap: 16px; }
+.login-fields label { gap: 7px; }
+.login-fields label > span { color: #3a3a3c; font-size: 12px; font-weight: 500; }
+.login-fields input { height: 50px; border-color: #d2d2d7; border-radius: 12px; background: #fff; color: #1d1d1f; font-size: 16px; }
+.login-fields input:focus { border-color: #0071e3; box-shadow: 0 0 0 4px rgba(0, 113, 227, .14); }
+.login-button { height: 48px; margin-top: 25px; border-radius: 980px; border-color: #0071e3; background: #0071e3; box-shadow: none; font-size: 15px; font-weight: 600; }
+.login-button:hover:not(:disabled) { border-color: #0077ed; background: #0077ed; box-shadow: none; }
+.login-error { border-color: #f0b7b7; border-radius: 10px; background: #fff6f6; color: #a13232; }
+.login-security { margin-top: 21px; color: #6e6e73; font-size: 12px; }
+.login-footnote { margin: 26px 0 0; color: #86868b; font-size: 11px; text-align: center; }
+@media (max-width: 600px) { .login-page { align-items: flex-start; padding: 24px 16px; } .login-shell { margin-top: max(22px, env(safe-area-inset-top)); border-radius: 16px; } .login-panel { padding: 32px 24px 28px; } }
