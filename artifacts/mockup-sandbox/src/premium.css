@@ -27,6 +27,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .sidebar-snapshot-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 17px; padding-top: 12px; border-top: 1px solid #dfe5ee; }
 .sidebar-snapshot-meta span { color: #68798f !important; font-size: 10px !important; letter-spacing: 0 !important; }
 .reference-main { width: min(100%, 1460px); padding-top: 48px; }
+.page-transition { animation: page-enter .32s cubic-bezier(.22,.85,.34,1) both; }
+@keyframes page-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .profile-toolbar { margin-top: -23px; margin-bottom: 22px; }
 .mobile-brand { display: none; }
 .profile-trigger { background: #fff; border-color: #dedee2; box-shadow: 0 2px 8px rgba(24,24,27,.05); }
@@ -390,7 +392,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .profile-photo-editor { gap: 13px; padding: 12px; }
   .profile-photo-preview { flex-basis: 100px; width: 100px; height: 100px; font-size: 30px; }
 }
-@media (prefers-reduced-motion: reduce) { button, input, select, textarea { transition: none; } }
+@media (prefers-reduced-motion: reduce) { button, input, select, textarea, .page-transition { transition: none; animation: none; } }
 
 @media (max-width: 600px) {
   .transaction-form .transaction-form-grid { grid-template-columns: 1fr; gap: 18px; }

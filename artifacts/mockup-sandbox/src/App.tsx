@@ -219,6 +219,7 @@ function go(path: string) {
 function Shell({
   active,
   children,
+  contentKey,
   onLogout,
   role,
   profile,
@@ -228,6 +229,7 @@ function Shell({
 }: {
   active: string;
   children: ReactNode;
+  contentKey: string;
   onLogout: () => void;
   role: UserRole;
   profile: UserProfile;
@@ -325,7 +327,7 @@ function Shell({
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
         </div>
-        {children}
+        <div className="page-transition" key={contentKey}>{children}</div>
       </main>
       {editing && <EditProfile profile={profile} avatarUrl={avatarUrl} onClose={() => setEditing(false)} onSave={onSaveProfile} />}
     </div>
@@ -3086,7 +3088,7 @@ export default function App() {
 
   return (
     <>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
