@@ -2,7 +2,7 @@ import "regenerator-runtime/runtime.js";
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
-type StatementParty = { name: string; company?: string; contact?: string; location?: string };
+type StatementParty = { name: string; company?: string; contact?: string; location?: string; partyType?: "customer" | "supplier" };
 type StatementEntry = {
   id: string;
   type: "PURCHASE" | "PAYMENT";
@@ -24,7 +24,6 @@ const MUTED = rgb(0.38, 0.43, 0.51);
 const STRIPE = rgb(0.91, 0.95, 1);
 const WHITE = rgb(1, 1, 1);
 const COLUMNS = [72, 175, 49, 72, 76, 79];
-const HEADERS = ["Date (BS / AD)", "Description", "Ref.", "Sales", "Payments", "Balance"];
 const amount = (cents: number) => (cents / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function drawText(page: PDFPage, value: string, x: number, top: number, size: number, font: PDFFont, color = NAVY) {
@@ -82,14 +81,17 @@ function wrapText(value: string, latin: PDFFont, devanagari: PDFFont, size: numb
 }
 
 function drawBase(page: PDFPage, party: StatementParty, period: string, font: PDFFont, devanagari: PDFFont, bold: PDFFont) {
+  const isSupplier = party.partyType === "supplier";
+  const accountType = isSupplier ? "SUPPLIER" : "CUSTOMER";
+  const headers = ["Date (BS / AD)", "Description", "Ref.", isSupplier ? "Purchases" : "Sales", "Payments", "Balance"];
   page.drawRectangle({ x: MARGIN, y: HEIGHT - 67, width: 36, height: 36, color: NAVY });
   drawText(page, "RKH", 41, 40, 11, bold, WHITE);
   drawText(page, "RKH SUPPLIERS", 83, 28, 18, bold);
   drawText(page, "KATHMANDU, NEPAL", 84, 51, 8, font, MUTED);
-  drawRight(page, "CUSTOMER ACCOUNT STATEMENT", WIDTH - MARGIN, 32, 10, bold);
+  drawRight(page, `${accountType} ACCOUNT STATEMENT`, WIDTH - MARGIN, 32, 10, bold);
   page.drawLine({ start: { x: MARGIN, y: HEIGHT - 76 }, end: { x: WIDTH - MARGIN, y: HEIGHT - 76 }, thickness: 1, color: NAVY });
 
-  drawText(page, "CUSTOMER", MARGIN, 89, 8, bold, BLUE);
+  drawText(page, accountType, MARGIN, 89, 8, bold, BLUE);
   wrapText(party.name, font, devanagari, 12, 265).slice(0, 2).forEach((line, index) => drawMixedText(page, line, MARGIN, 104 + index * 14, 12, font, devanagari));
   if (party.company) drawMixedText(page, party.company, MARGIN, 135, 8, font, devanagari, MUTED);
   if (party.location) drawMixedText(page, party.location, MARGIN, 149, 8, font, devanagari, MUTED);
@@ -101,25 +103,27 @@ function drawBase(page: PDFPage, party: StatementParty, period: string, font: PD
 
   page.drawRectangle({ x: MARGIN, y: HEIGHT - TABLE_TOP - 22, width: WIDTH - MARGIN * 2, height: 22, color: BLUE });
   let x = MARGIN;
-  HEADERS.forEach((heading, index) => {
+  headers.forEach((heading, index) => {
     const rightAligned = index >= 3;
     if (rightAligned) drawRight(page, heading, x + COLUMNS[index] - 5, TABLE_TOP + 6, 8, bold, WHITE);
     else drawText(page, heading, x + 5, TABLE_TOP + 6, 8, bold, WHITE);
     x += COLUMNS[index];
   });
   page.drawLine({ start: { x: MARGIN, y: HEIGHT - 795 }, end: { x: WIDTH - MARGIN, y: HEIGHT - 795 }, thickness: 0.6, color: rgb(0.79, 0.84, 0.91) });
-  drawText(page, "RKH Suppliers  |  Customer account statement", MARGIN, 801, 7, font, MUTED);
+  drawText(page, `RKH Suppliers  |  ${isSupplier ? "Supplier" : "Customer"} account statement`, MARGIN, 801, 7, font, MUTED);
 }
 
 export async function createPartyStatementPdf(party: StatementParty, entries: StatementEntry[], fontBytes: Uint8Array) {
+  const isSupplier = party.partyType === "supplier";
+  const accountType = isSupplier ? "supplier" : "customer";
   const document = await PDFDocument.create();
   document.registerFontkit(fontkit);
   const font = await document.embedFont(StandardFonts.Helvetica);
   const devanagari = await document.embedFont(fontBytes, { subset: true });
   const bold = await document.embedFont(StandardFonts.HelveticaBold);
-  document.setTitle(`${party.name} - customer statement`);
+  document.setTitle(`${party.name} - ${accountType} statement`);
   document.setAuthor("RKH Suppliers");
-  document.setSubject("Customer account statement");
+  document.setSubject(`${isSupplier ? "Supplier" : "Customer"} account statement`);
 
   const ordered = [...entries].sort((a, b) => a.ad.localeCompare(b.ad) || (a.type === b.type ? 0 : a.type === "PURCHASE" ? -1 : 1));
   const period = ordered.length ? `${ordered[0].bs} to ${ordered[ordered.length - 1].bs}` : "No transactions recorded";
@@ -162,12 +166,12 @@ export async function createPartyStatementPdf(party: StatementParty, entries: St
   };
 
   if (!ordered.length) {
-    drawText(page, "No transactions recorded for this customer.", MARGIN + 6, top + 10, 9, font, MUTED);
+    drawText(page, `No transactions recorded for this ${accountType}.`, MARGIN + 6, top + 10, 9, font, MUTED);
     top += 36;
   }
 
   for (const entry of ordered) {
-    const kind = entry.type === "PURCHASE" ? "Sale" : "Payment received";
+    const kind = entry.type === "PURCHASE" ? (isSupplier ? "Purchase" : "Sale") : (isSupplier ? "Payment made" : "Payment received");
     const savedDescription = entry.description.trim() === "Payment received with purchase" ? "Payment received with sale" : entry.description.trim();
     const description = savedDescription
       ? savedDescription.toLowerCase().startsWith(kind.toLowerCase()) ? savedDescription : `${kind} - ${savedDescription}`

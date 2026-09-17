@@ -1248,15 +1248,18 @@ function AddEntry({
   const [dateError, setDateError] = useState("");
 
   const [partiallyPaid, setPartiallyPaid] = useState(false);
+  const [counterpartyType, setCounterpartyType] = useState<Party["partyType"]>(
+    () => parties.find((party) => party.id === initialPartyId)?.partyType ?? "customer",
+  );
   const [partyQuery, setPartyQuery] = useState(() => parties.find((party) => party.id === initialPartyId)?.name ?? "");
   const [partySuggestionsOpen, setPartySuggestionsOpen] = useState(false);
   const [activePartySuggestion, setActivePartySuggestion] = useState(0);
   const englishDateInputRef = useRef<HTMLInputElement>(null);
-  const selectedParty = parties.find((party) => party.id === form.partyId);
-  const isSupplier = selectedParty?.partyType === "supplier";
+  const isSupplier = counterpartyType === "supplier";
   const primaryTransactionLabel = isSupplier ? "Purchase" : "Sale";
   const paymentTransactionLabel = isSupplier ? "Payment made" : "Payment received";
-  const partyMatches = [...(partyQuery.trim() ? matchingParties(parties, partyQuery) : parties)]
+  const eligibleParties = parties.filter((party) => party.partyType === counterpartyType);
+  const partyMatches = [...(partyQuery.trim() ? matchingParties(eligibleParties, partyQuery) : eligibleParties)]
     .sort((a, b) => {
       const query = partyQuery.trim().toLowerCase();
       const rank = (party: Party) => party.name.toLowerCase().startsWith(query) ? 0 : party.name.toLowerCase().includes(query) ? 1 : 2;
@@ -1265,7 +1268,7 @@ function AddEntry({
     .slice(0, 6);
   const showPartySuggestions = partySuggestionsOpen && !(form.partyId && partyQuery === parties.find((party) => party.id === form.partyId)?.name);
   const chooseParty = (party: Party) => {
-    setForm((current) => ({ ...current, partyId: party.id, type: "PURCHASE", paidNow: "" }));
+    setForm((current) => ({ ...current, partyId: party.id, paidNow: "" }));
     setPartyQuery(party.name);
     setPartiallyPaid(false);
     setPartySuggestionsOpen(false);
@@ -1370,8 +1373,9 @@ function AddEntry({
       >
         <h2>Transaction details</h2>
 
-        <div className={`entry-context${selectedParty ? ` ${selectedParty.partyType}` : ""}`}>
-          {selectedParty ? <><strong>{selectedParty.partyType === "supplier" ? "Supplier selected" : "Customer selected"}</strong><span>{selectedParty.partyType === "supplier" ? "Record a purchase or payment made to this supplier." : "Record a sale or payment received from this customer."}</span></> : <><strong>Select a party first</strong><span>Choose a customer to record a sale, or a supplier to record a purchase.</span></>}
+        <div className={`entry-context ${counterpartyType}`}>
+          <strong>{isSupplier ? "Supplier transaction" : "Customer transaction"}</strong>
+          <span>{isSupplier ? "Choose a supplier, then select Purchase or Payment made." : "Choose a customer, then select Sale or Payment received."}</span>
         </div>
 
         {parties.length === 0 && (
@@ -1382,6 +1386,24 @@ function AddEntry({
         )}
 
         <div className="form-grid transaction-form-grid">
+          <FormField label="Party type *">
+            <select
+              value={counterpartyType}
+              onChange={(event) => {
+                const nextType = event.target.value as Party["partyType"];
+                setCounterpartyType(nextType);
+                setForm((current) => ({ ...current, partyId: "", paidNow: "" }));
+                setPartyQuery("");
+                setPartiallyPaid(false);
+                setPartySuggestionsOpen(false);
+                setActivePartySuggestion(0);
+              }}
+            >
+              <option value="customer">Customer</option>
+              <option value="supplier">Supplier</option>
+            </select>
+          </FormField>
+
           <div className="form-field">
             <label htmlFor="entry-party-search">Party *</label>
             <div className="entry-party-search" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPartySuggestionsOpen(false); }}>
@@ -1394,7 +1416,7 @@ function AddEntry({
                 aria-controls="entry-party-suggestions"
                 aria-activedescendant={showPartySuggestions && partyMatches.length ? `entry-party-suggestions-${activePartySuggestion}` : undefined}
                 autoComplete="off"
-                placeholder="Type a party name, company, or phone"
+                placeholder={`Type a ${isSupplier ? "supplier" : "customer"} name, company, or phone`}
                 value={partyQuery}
                 onFocus={() => setPartySuggestionsOpen(true)}
                 onChange={(event) => { setPartyQuery(event.target.value); setForm((current) => ({ ...current, partyId: "" })); setActivePartySuggestion(0); setPartySuggestionsOpen(true); }}
@@ -1406,7 +1428,7 @@ function AddEntry({
                   if (event.key === "Enter") { event.preventDefault(); chooseParty(partyMatches[activePartySuggestion]); }
                 }}
               />
-              <small className="entry-party-help">Supplier = purchase and payment made · Customer = sale and payment received</small>
+              <small className="entry-party-help">Showing {isSupplier ? "suppliers" : "customers"} only. Change Party type to switch.</small>
               {partyQuery && <button type="button" className="party-search-clear" aria-label="Clear selected party" onClick={() => { setPartyQuery(""); setForm((current) => ({ ...current, partyId: "" })); setActivePartySuggestion(0); setPartySuggestionsOpen(true); document.getElementById("entry-party-search")?.focus(); }}><X size={15} /></button>}
               {showPartySuggestions && <PartySuggestions id="entry-party-suggestions" parties={partyMatches} active={activePartySuggestion} onSelect={chooseParty} emptyMessage="No matching parties. Try a different name or phone number." />}
             </div>
@@ -1415,7 +1437,6 @@ function AddEntry({
           <FormField label="Transaction type *">
             <select
               value={form.type}
-              disabled={!selectedParty}
               onChange={(event) => {
                 setForm({ ...form, type: event.target.value as EntryType, paidNow: "" });
                 setPartiallyPaid(false);
@@ -1638,14 +1659,14 @@ function Transactions({
           className="outline-button"
           disabled={shown.length === 0}
           onClick={() => {
-            const purchases = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
+            const primaryEntries = shown.filter((entry) => entry.type === "PURCHASE").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
             const payments = shown.filter((entry) => entry.type === "PAYMENT").reduce((sum, entry) => sum + toCents(entry.amount), 0) / 100;
             downloadCsv(
               `rkh-statement-${todayDates().bs}.csv`,
-              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Sales (NPR)", "Payment (NPR)"],
+              ["Date (BS)", "Date (AD)", "Party", "Type", "Description", "Sales / Purchases (NPR)", "Payments (NPR)"],
               [
-                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entry.type === "PURCHASE" ? "Sale" : "Payment", entryDescription(entry), entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
-                ["TOTAL", "", "", "", "", purchases, payments],
+                ...shown.map((entry) => [entry.bs, entry.ad, partyName(parties, entry.partyId), entryLabel(entry, partyById.get(entry.partyId)), entryDescription(entry), entry.type === "PURCHASE" ? entry.amount : "", entry.type === "PAYMENT" ? entry.amount : ""]),
+                ["TOTAL", "", "", "", "", primaryEntries, payments],
               ],
             );
           }}
@@ -1692,11 +1713,11 @@ function Transactions({
           </option>
 
           <option value="PURCHASE">
-            Sales
+            Sales & purchases
           </option>
 
           <option value="PAYMENT">
-            Payments
+            Payments received & paid
           </option>
         </select>
 
@@ -1974,6 +1995,9 @@ function PartyDetail({
         sum + toCents(entry.amount),
       0,
     ) / 100;
+  const primaryLabel = party.partyType === "supplier" ? "Purchases" : "Sales";
+  const paymentLabel = party.partyType === "supplier" ? "Payments made" : "Payments received";
+  const outstandingLabel = party.partyType === "supplier" ? "Outstanding to pay" : "Outstanding to collect";
 
   const exportHistory = async () => {
     setExportingPdf(true);
@@ -2038,20 +2062,20 @@ function PartyDetail({
 
       <section className="summary-grid">
         <div>
-          <span>Sales</span>
+          <span>{primaryLabel}</span>
           <strong>
             {money(purchased)}
           </strong>
         </div>
 
         <div>
-          <span>Payments</span>
+          <span>{paymentLabel}</span>
           <strong>{money(paid)}</strong>
         </div>
 
         <div>
           <span>
-            Outstanding balance
+            {outstandingLabel}
           </span>
 
           <strong>
