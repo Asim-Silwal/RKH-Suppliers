@@ -125,14 +125,15 @@ const matchingParties = (parties: Party[], query: string) =>
 
 const partyPhoneIsValid = (contact: string) => !contact.trim() || /^\d{10}$/.test(contact.trim());
 
-const balanceOf = (entries: Entry[], partyId: string) =>
-  entries
-    .filter((entry) => entry.partyId === partyId)
-    .reduce(
-      (sum, entry) =>
-        sum + (entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount)),
-      0,
-    ) / 100;
+const balancesByParty = (entries: Entry[]) => {
+  const balances = new Map<string, number>();
+  for (const entry of entries) {
+    balances.set(entry.partyId, (balances.get(entry.partyId) ?? 0) + (entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount)));
+  }
+  return balances;
+};
+
+const LIST_PAGE_SIZE = 50;
 
 const bsDate = (date: Date) => new NepaliDate(date).format("YYYY-MM-DD");
 
@@ -478,6 +479,7 @@ function Table({
   onSelect?: (entry: Entry) => void;
   selectionDisabled?: boolean;
 }) {
+  const partyById = new Map(parties.map((party) => [party.id, party]));
   return (
     <div className={`ledger-table${onSelect ? " selectable-table" : ""}`}>
       <div className={`ledger-row ledger-head${onSelect ? " selectable-ledger-row" : ""}`}>
@@ -498,10 +500,10 @@ function Table({
           </span>
 
           <span>
-            <b>{partyName(parties, entry.partyId)}</b>
+            <b>{partyById.get(entry.partyId)?.name ?? "Unknown party"}</b>
 
             <small>
-              {parties.find((party) => party.id === entry.partyId)?.company}
+              {partyById.get(entry.partyId)?.company}
             </small>
           </span>
 
@@ -552,9 +554,10 @@ function Dashboard({
   const totalActivityCents = toCents(purchased) + toCents(collected);
   const purchaseShare = totalActivityCents ? Math.round(toCents(purchased) / totalActivityCents * 100) : 0;
   const paymentShare = totalActivityCents ? 100 - purchaseShare : 0;
+  const periodBalances = balancesByParty(periodEntries);
 
   const dueParties = parties
-    .map((party) => ({ party, balance: balanceOf(periodEntries, party.id) }))
+    .map((party) => ({ party, balance: (periodBalances.get(party.id) ?? 0) / 100 }))
     .filter(({ balance }) => balance > 0)
     .sort((a, b) => b.balance - a.balance);
   const outstanding = dueParties.reduce((total, item) => total + toCents(item.balance), 0) / 100;
@@ -736,11 +739,13 @@ function Parties({
   const [query, setQuery] = useState("");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const searchRef = useRef<HTMLInputElement>(null);
   const matches = query.trim() ? matchingParties(parties, query).slice(0, 6) : [];
   const showSuggestions = suggestionsOpen && Boolean(query.trim());
 
   const shown = matchingParties(parties, query);
+  const partyBalances = balancesByParty(entries);
 
   return (
     <>
@@ -766,7 +771,7 @@ function Parties({
             placeholder="Search by name, company, or phone"
             value={query}
             onFocus={() => setSuggestionsOpen(true)}
-            onChange={(event) => { setQuery(event.target.value); setActiveSuggestion(0); setSuggestionsOpen(true); }}
+            onChange={(event) => { setQuery(event.target.value); setVisibleCount(LIST_PAGE_SIZE); setActiveSuggestion(0); setSuggestionsOpen(true); }}
             onKeyDown={(event) => {
               if (event.key === "Escape") setSuggestionsOpen(false);
               if (!showSuggestions || matches.length === 0) return;
@@ -775,7 +780,7 @@ function Parties({
               if (event.key === "Enter") { event.preventDefault(); const match = matches[activeSuggestion]; if (match) go(partyPath(match, parties)); }
             }}
           />
-          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
+          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setVisibleCount(LIST_PAGE_SIZE); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
           {showSuggestions && <PartySuggestions id="directory-party-suggestions" parties={matches} active={activeSuggestion} onSelect={(party) => go(partyPath(party, parties))} emptyMessage="No matching parties." />}
         </div>
       </div>
@@ -789,11 +794,8 @@ function Parties({
           <span />
         </div>
 
-        {shown.map((party) => {
-          const balance = balanceOf(
-            entries,
-            party.id,
-          );
+        {shown.slice(0, visibleCount).map((party) => {
+          const balance = (partyBalances.get(party.id) ?? 0) / 100;
 
           return (
             <button
@@ -835,6 +837,7 @@ function Parties({
             {query ? "No parties match your search." : "No parties yet. Add a party to start recording transactions."}
           </p>
         )}
+        {shown.length > visibleCount && <button type="button" className="list-load-more" onClick={() => setVisibleCount((count) => count + LIST_PAGE_SIZE)}>Show more parties ({shown.length - visibleCount} remaining)</button>}
       </section>
     </>
   );
@@ -1369,6 +1372,7 @@ function Transactions({
   const [selectedPartyId, setSelectedPartyId] = useState<string | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(LIST_PAGE_SIZE);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [type, setType] =
@@ -1387,16 +1391,15 @@ function Transactions({
   const chooseParty = (party: Party) => {
     setQuery(party.name);
     setSelectedPartyId(party.id);
+    setVisibleCount(LIST_PAGE_SIZE);
     setSuggestionsOpen(false);
     setActiveSuggestion(0);
   };
 
+  const partyById = new Map(parties.map((party) => [party.id, party]));
   const shown = entries.filter(
     (entry) => {
-      const party = parties.find(
-        (item) =>
-          item.id === entry.partyId,
-      );
+      const party = partyById.get(entry.partyId);
 
       const text =
         `${party?.name ?? ""} ${
@@ -1463,7 +1466,7 @@ function Transactions({
             placeholder="Search party or description"
             value={query}
             onFocus={() => setSuggestionsOpen(true)}
-            onChange={(event) => { setQuery(event.target.value); setSelectedPartyId(null); setActiveSuggestion(0); setSuggestionsOpen(true); }}
+            onChange={(event) => { setQuery(event.target.value); setSelectedPartyId(null); setVisibleCount(LIST_PAGE_SIZE); setActiveSuggestion(0); setSuggestionsOpen(true); }}
             onKeyDown={(event) => {
               if (event.key === "Escape") setSuggestionsOpen(false);
               if (!showSuggestions || suggestedParties.length === 0) return;
@@ -1472,16 +1475,14 @@ function Transactions({
               if (event.key === "Enter") { event.preventDefault(); const match = suggestedParties[activeSuggestion]; if (match) chooseParty(match); }
             }}
           />
-          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSelectedPartyId(null); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
+          {query && <button type="button" className="party-search-clear" aria-label="Clear search" onClick={() => { setQuery(""); setSelectedPartyId(null); setVisibleCount(LIST_PAGE_SIZE); setSuggestionsOpen(false); setActiveSuggestion(0); searchRef.current?.focus(); }}><X size={15} /></button>}
           {showSuggestions && <PartySuggestions id="party-suggestions" parties={suggestedParties} active={activeSuggestion} onSelect={chooseParty} emptyMessage="No matching parties. You can still search descriptions." />}
         </div>
 
         <select
           aria-label="Filter transaction type"
           value={type}
-          onChange={(event) =>
-            setType(event.target.value)
-          }
+          onChange={(event) => { setType(event.target.value); setVisibleCount(LIST_PAGE_SIZE); }}
         >
           <option value="all">
             All types
@@ -1500,27 +1501,24 @@ function Transactions({
           aria-label="From Nepali date"
           placeholder="From BS (YYYY-MM-DD)"
           value={from}
-          onChange={(event) =>
-            setFrom(event.target.value)
-          }
+          onChange={(event) => { setFrom(event.target.value); setVisibleCount(LIST_PAGE_SIZE); }}
         />
 
         <input
           aria-label="To Nepali date"
           placeholder="To BS (YYYY-MM-DD)"
           value={to}
-          onChange={(event) =>
-            setTo(event.target.value)
-          }
+          onChange={(event) => { setTo(event.target.value); setVisibleCount(LIST_PAGE_SIZE); }}
         />
       </div>
 
       <section className="reference-panel table-panel">
         <Table
-          entries={shown}
+          entries={shown.slice(0, visibleCount)}
           parties={parties}
           emptyMessage={entries.length === 0 ? "No transactions yet. Add a transaction to start your ledger." : "No transactions match these filters."}
         />
+        {shown.length > visibleCount && <button type="button" className="list-load-more" onClick={() => setVisibleCount((count) => count + LIST_PAGE_SIZE)}>Show more transactions ({shown.length - visibleCount} remaining)</button>}
       </section>
     </>
   );
@@ -2376,7 +2374,7 @@ export default function App() {
             party.notes?.trim() ||
             null,
         })
-        .select()
+        .select("id, name, company_name, contact, location, notes")
         .single();
 
     if (error) {
@@ -2560,7 +2558,7 @@ export default function App() {
       await supabase
         .from("transactions")
         .insert(transactionRows)
-        .select();
+        .select("id, party_id, type, amount, date_ad, date_bs, description");
 
     if (error || !data) {
       console.error(error);
@@ -2800,9 +2798,11 @@ export default function App() {
     );
   }
 
+  const lifetimeBalances = balancesByParty(entries);
+
   return (
     <>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + Math.max(0, balanceOf(entries, party.id)), 0), partyCount: parties.length, todayBs: todayDates().bs }}>
+      <Shell active={restrictedRoute ? "dashboard" : current.path} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + Math.max(0, lifetimeBalances.get(party.id) ?? 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
         {page}
       </Shell>
       <ActionNotice notice={notice} dismiss={() => setNotice(null)} />

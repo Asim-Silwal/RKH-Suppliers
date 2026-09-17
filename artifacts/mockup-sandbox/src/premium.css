@@ -112,6 +112,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .party-suggestions button strong { overflow: hidden; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .party-suggestions button small, .party-suggestions p { color: #7b8593; font-size: 11px; }
 .party-suggestions p { margin: 0; padding: 12px; }
+.list-load-more { display: block; width: 100%; padding: 15px; border: 0; border-top: 1px solid #e7eaf0; background: #fff; color: #315f9f; font-size: 12px; font-weight: 600; cursor: pointer; }
+.list-load-more:hover { background: #f4f7fc; }
 .entry-party-search { position: relative; display: flex; align-items: center; min-width: 0; }
 .form-panel .entry-party-search input { padding-right: 40px; }
 .entry-party-search .party-search-clear { position: absolute; right: 9px; }
