@@ -243,7 +243,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .entry-party-search .party-suggestions { top: calc(100% + 6px); left: 0; width: 100%; }
 .form-panel { max-width: 880px; padding: 32px; }
 .form-panel { position: relative; overflow: hidden; border-color: #dfe4ec; background: linear-gradient(180deg, #ffffff 0, #fcfdff 100%); }
-.form-panel::before { content: ""; position: absolute; top: 0; right: 28px; left: 28px; height: 3px; border-radius: 0 0 4px 4px; background: #3268b2; }
 .form-panel h2 { margin-bottom: 8px; font-size: 23px; }
 .form-panel > .form-grid, .form-panel > label, .form-panel > .form-actions, .form-panel > .form-error, .form-panel > .entry-context, .form-panel > .form-notice { position: relative; }
 .form-panel > label, .form-grid label, .form-grid .form-field { color: #515159; }
@@ -253,11 +252,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .form-panel select, .filter-bar select { appearance: none; padding-right: 42px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233268b2' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-position: right 13px center; background-size: 18px; background-repeat: no-repeat; }
 .form-panel select { min-height: 46px; }
 .form-panel input:hover, .form-panel select:hover, .form-panel textarea:hover, .bs-date-trigger:hover { border-color: #bfc7d2; background: #fff; }
-.party-form .form-grid > label:nth-child(1) { order: 5; }
-.party-form .form-grid > label:nth-child(2) { order: 1; }
-.party-form .form-grid > label:nth-child(3) { order: 2; }
-.party-form .form-grid > label:nth-child(4) { order: 3; }
-.party-form .form-grid > label:nth-child(5) { grid-column: 1 / -1; order: 4; }
 .form-error { margin: 14px 0 0; padding: 11px 13px; border: 1px solid #efc8c4; border-radius: 10px; background: #fff6f5; color: #9b3f38; font-size: 12px; line-height: 1.4; animation: form-error-enter .3s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes form-error-enter { 0% { opacity: 0; transform: translateY(-5px); } 55% { transform: translateY(2px); } 75% { transform: translateX(-3px); } 100% { opacity: 1; transform: translateX(0) translateY(0); } }
 .form-panel input:focus, .form-panel select:focus, .form-panel textarea:focus, .bs-date-trigger:hover { border-color: #3268b2; box-shadow: 0 0 0 3px rgba(50, 104, 178, .12); }

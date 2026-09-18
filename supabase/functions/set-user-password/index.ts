@@ -18,7 +18,6 @@ Deno.serve(async (request) => {
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) return reply(500, { error: "Server is not configured." });
-
   const token = request.headers.get("Authorization")?.match(/^Bearer (.+)$/i)?.[1];
   if (!token) return reply(401, { error: "Sign in required." });
 
@@ -27,7 +26,6 @@ Deno.serve(async (request) => {
   });
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) return reply(401, { error: "Invalid session." });
-
   const { data: owner, error: ownerError } = await admin
     .from("app_owner").select("user_id").eq("user_id", userData.user.id).maybeSingle();
   if (ownerError || !owner) return reply(403, { error: "Owner access required." });
@@ -36,34 +34,16 @@ Deno.serve(async (request) => {
   try { input = await request.json(); } catch { return reply(400, { error: "Invalid request." }); }
   if (!input || typeof input !== "object") return reply(400, { error: "Invalid request." });
   const fields = input as Record<string, unknown>;
-  const email = typeof fields.email === "string" ? fields.email.trim().toLowerCase() : "";
-  const fullName = typeof fields.fullName === "string" ? fields.fullName.trim() : "";
+  const userId = typeof fields.userId === "string" ? fields.userId : "";
   const password = typeof fields.password === "string" ? fields.password : "";
-  const role = typeof fields.role === "string" ? fields.role : "";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || fullName.length > 120 || !role || role === "admin" || password.length < 12 || password.length > 128) {
-    return reply(400, { error: "Enter a valid email, name, role, and a password of 12 to 128 characters." });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId) || password.length < 12 || password.length > 128) {
+    return reply(400, { error: "Choose a user and enter a password of 12 to 128 characters." });
   }
-  const { data: roleData, error: roleError } = await admin.from("app_roles")
-    .select("role_key").eq("role_key", role).maybeSingle();
-  if (roleError || !roleData) return reply(400, { error: "Choose an existing non-admin role." });
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
-  if (createError || !created.user) return reply(400, { error: createError?.message ?? "Could not create user." });
-
-  const { error: profileError } = await admin.from("profiles").upsert({
-    id: created.user.id,
-    role,
-    full_name: fullName,
-  }, { onConflict: "id" });
-  if (profileError) {
-    await admin.auth.admin.deleteUser(created.user.id);
-    console.error("Could not assign new user role", profileError);
-    return reply(500, { error: "Could not assign the user's role; the new account was removed. Please try again." });
-  }
-  return reply(200, { id: created.user.id });
+  const { data: target, error: targetError } = await admin.from("profiles")
+    .select("id").eq("id", userId).maybeSingle();
+  if (targetError || !target) return reply(404, { error: "User not found." });
+  const { error: updateError } = await admin.auth.admin.updateUserById(userId, { password });
+  if (updateError) return reply(400, { error: updateError.message });
+  return reply(200, { updated: true });
 });

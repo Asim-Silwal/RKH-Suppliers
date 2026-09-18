@@ -269,15 +269,15 @@ function Shell({
       document.removeEventListener("keydown", escape);
     };
   }, [menuOpen]);
-  const links = role === "staff" ? [
+  const can = (permission: Permission) => profile.permissions.includes(permission);
+  const links = can("staff_balances_view") ? [
     ["dashboard", "Balances", LayoutDashboard],
   ] as const : [
     ["dashboard", "Dashboard", LayoutDashboard],
-    ["parties", "Parties", UsersRound],
-    ["add-entry", "Transactions", Plus],
-    ["transactions", "Statement", FileText],
-    ["reports", "Reports", BarChart3],
-    ["sahakari", "Sahakari", Landmark],
+    ...(can("ledger_view") ? [["parties", "Parties", UsersRound] as const, ["transactions", "Statement", FileText] as const] : []),
+    ...(can("transactions_write") ? [["add-entry", "Add transaction", Plus] as const] : []),
+    ...(can("reports_view") ? [["reports", "Reports", BarChart3] as const] : []),
+    ...(can("sahakari_view") ? [["sahakari", "Sahakari", Landmark] as const] : []),
     ...(profile.isOwner ? [["users", "Users", UsersRound] as const] : []),
   ] as const;
 
@@ -314,7 +314,7 @@ function Shell({
           ))}
         </nav>
 
-        {role !== "staff" && <footer className="sidebar-snapshot">
+        {can("ledger_view") && <footer className="sidebar-snapshot">
           <span className="sidebar-snapshot-heading">LEDGER AT A GLANCE</span>
           <div className="sidebar-balance-summary">
             <div><span>To collect</span><strong>{money(snapshot.outstanding)}</strong><small>Lifetime customer payments due</small></div>
@@ -452,9 +452,10 @@ function EditProfile({ profile, avatarUrl, onClose, onSave }: {
           <input id="avatar-vertical" type="range" min="0" max="100" value={verticalPosition} onChange={(event) => setVerticalPosition(Number(event.target.value))} disabled={saving || !photoImage} />
           <div><span>Up</span><span>Down</span></div>
         </div>}
-        <label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} maxLength={120} disabled={saving} /></label>
+        <div className="modal-section-label"><strong>Account details</strong><small>Your email is used for sign-in and cannot be changed here.</small></div>
+        <div className="profile-account-grid"><label>Full name<input value={fullName} onChange={(event) => setFullName(event.target.value)} maxLength={120} disabled={saving} /></label>
         <label>Contact number<input value={contact} onChange={(event) => setContact(event.target.value)} type="tel" maxLength={40} disabled={saving} /></label>
-        <label>Email<input value={profile.email} readOnly aria-readonly="true" /></label>
+        <label>Email<input value={profile.email} readOnly aria-readonly="true" /></label></div>
         <p className="profile-role-note">Role: {profile.roleName}</p>
         {error && <p className="profile-form-error" role="alert">{error}</p>}
         <div className="profile-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : "Save profile"}</button></div>
@@ -578,11 +579,13 @@ function Table({
 function Dashboard({
   parties,
   entries,
-  role,
+  canWriteTransactions,
+  canViewParties,
 }: {
   parties: Party[];
   entries: Entry[];
-  role: UserRole;
+  canWriteTransactions: boolean;
+  canViewParties: boolean;
 }) {
   const [period, setPeriod] = useState<DashboardPeriod>("month");
   const [customFrom, setCustomFrom] = useState(() => currentBsRange("month").from);
@@ -628,7 +631,7 @@ function Dashboard({
         eyebrow="BUSINESS OVERVIEW"
         title="Dashboard"
         description="A clear view of revenue, spending, cash movement, and amounts due across the business."
-        action={role !== "staff" ? () => go("add-entry") : undefined}
+        action={canWriteTransactions ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -754,7 +757,7 @@ function Dashboard({
               <h2>Customers who need to pay</h2>
             </div>
 
-            {role !== "staff" && <button
+            {canViewParties && <button
                className="text-link"
                onClick={() => go("parties")}
             >
@@ -764,7 +767,7 @@ function Dashboard({
           </div>
 
           {receivables.slice(0, 6).map(({ party, balance }) => (
-              role !== "staff" ? <button
+              canViewParties ? <button
                 className="outstanding-row"
                 key={party.id}
                 onClick={() =>
@@ -790,7 +793,7 @@ function Dashboard({
         </section>
         <section className="reference-panel dashboard-payables">
           <div className="panel-heading"><div><span className="eyebrow">MONEY TO PAY</span><h2>Suppliers you need to pay</h2></div></div>
-          {payables.slice(0, 6).map(({ party, balance }) => role !== "staff" ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
+          {payables.slice(0, 6).map(({ party, balance }) => canViewParties ? <button className="outstanding-row" key={party.id} onClick={() => go(partyPath(party, parties))}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></button> : <div className="outstanding-row static" key={party.id}><span><strong>{party.name}</strong><small>{party.location}</small></span><b>{money(balance)}</b></div>)}
           {payables.length === 0 && <p className="empty-state">No supplier payments are due.</p>}
         </section>
       </div>
@@ -1091,6 +1094,25 @@ function PartyTypePicker({
   );
 }
 
+function TransactionTypePicker({ value, isSupplier, onChange }: {
+  value: EntryType;
+  isSupplier: boolean;
+  onChange: (value: EntryType) => void;
+}) {
+  const options = [
+    { type: "PURCHASE" as const, title: isSupplier ? "Purchase" : "Sale", help: isSupplier ? "Goods bought from a supplier" : "Goods sold to a customer", Icon: FileText },
+    { type: "PAYMENT" as const, title: isSupplier ? "Payment made" : "Payment received", help: isSupplier ? "Money paid to a supplier" : "Money collected from a customer", Icon: ArrowRight },
+  ];
+  return <div className="transaction-type-picker" role="radiogroup" aria-label="Transaction type">
+    {options.map(({ type, title, help, Icon }) => <label key={type} className={value === type ? "selected" : ""}>
+      <input type="radio" name="transaction-type" value={type} checked={value === type} onChange={() => onChange(type)} />
+      <span className="transaction-type-icon"><Icon size={18} /></span>
+      <span className="transaction-type-copy"><strong>{title}</strong><small>{help}</small></span>
+      <span className="transaction-type-check"><Check size={14} /></span>
+    </label>)}
+  </div>;
+}
+
 /* =========================================================
    ADD PARTY
    ========================================================= */
@@ -1157,9 +1179,10 @@ function AddParty({
         className="form-panel party-form"
         onSubmit={submit}
       >
-        <h2>Party information</h2>
+        <div className="form-panel-heading"><span className="form-kicker">NEW ACCOUNT</span><h2>Party information</h2><p>Choose the account type, then add the details your team will recognize.</p></div>
 
         <div className="form-grid">
+          <div className="form-step-heading"><span>1</span><div><strong>Account identity</strong><small>Names help your team find the right ledger later.</small></div></div>
           <div className="form-field">
             <span>Party type *</span>
             <PartyTypePicker value={form.partyType} onChange={(partyType) => setForm({ ...form, partyType })} />
@@ -1221,6 +1244,7 @@ function AddParty({
           </FormField>
         </div>
 
+        <div className="form-step-heading form-optional-heading"><span>2</span><div><strong>Extra context</strong><small>Optional notes stay with this party.</small></div></div>
         <FormField label="Notes">
           <textarea
             value={form.notes}
@@ -1417,7 +1441,7 @@ function AddEntry({
         className="form-panel transaction-form"
         onSubmit={submit}
       >
-        <h2>Transaction details</h2>
+        <div className="form-panel-heading"><span className="form-kicker">NEW LEDGER ENTRY</span><h2>Transaction details</h2><p>Follow these steps to record the right account and amount.</p></div>
 
         {parties.length === 0 && (
           <div className="form-notice">
@@ -1427,6 +1451,7 @@ function AddEntry({
         )}
 
         <div className="form-grid transaction-form-grid">
+          <div className="form-step-heading"><span>1</span><div><strong>Choose an account</strong><small>Select the customer or supplier this entry belongs to.</small></div></div>
           <div className="form-field">
             <span>Party type *</span>
             <PartyTypePicker
@@ -1472,27 +1497,17 @@ function AddEntry({
             </div>
           </div>
 
-          <FormField label="Transaction type *">
-            <select
-              value={form.type}
-              onChange={(event) => {
-                setForm({ ...form, type: event.target.value as EntryType, paidNow: "" });
+          <div className="form-step-heading"><span>2</span><div><strong>Record the activity</strong><small>Choose what happened, then enter the amount in rupees.</small></div></div>
+          <div className="form-field transaction-type-field"><span>Transaction type *</span>
+            <TransactionTypePicker value={form.type} isSupplier={isSupplier} onChange={(type) => {
+                setForm({ ...form, type, paidNow: "" });
                 setPartiallyPaid(false);
-              }}
-            >
-              <option value="PURCHASE">
-                {primaryTransactionLabel}
-              </option>
-
-              <option value="PAYMENT">
-                {paymentTransactionLabel}
-              </option>
-            </select>
-          </FormField>
+              }} />
+          </div>
 
           <div className="amount-column">
             <FormField label={form.type === "PURCHASE" ? `${primaryTransactionLabel} total (NPR) *` : "Payment amount (NPR) *"}>
-              <input
+              <span className="money-input"><span>NPR</span><input
                 required
                 type="text"
                 inputMode="decimal"
@@ -1500,7 +1515,7 @@ function AddEntry({
                 value={form.amount}
                 onChange={(event) => setForm({ ...form, amount: event.target.value })}
                 placeholder="0.00"
-              />
+              /></span>
             </FormField>
 
             {form.type === "PURCHASE" && (
@@ -1518,7 +1533,7 @@ function AddEntry({
                 </label>
                 {partiallyPaid && (
                   <FormField label={`${paymentTransactionLabel} now (NPR) *`}>
-                    <input
+                    <span className="money-input"><span>NPR</span><input
                       required
                       type="text"
                       inputMode="decimal"
@@ -1526,7 +1541,7 @@ function AddEntry({
                       value={form.paidNow}
                       onChange={(event) => setForm({ ...form, paidNow: event.target.value })}
                       placeholder="0.00"
-                    />
+                    /></span>
                     <small>{isSupplier ? "Enter the amount paid now. The remaining amount stays payable." : "Enter the amount received now. The remaining amount stays receivable."}</small>
                     {form.paidNow && invalidPaidNow && <small className="field-error">Enter less than the {primaryTransactionLabel.toLowerCase()} total.</small>}
                   </FormField>
@@ -1535,6 +1550,7 @@ function AddEntry({
             )}
           </div>
 
+          <div className="form-step-heading"><span>3</span><div><strong>Date and details</strong><small>Keep the Nepali and English dates in sync, then add a useful note.</small></div></div>
           <div className="transaction-date-column">
             <div className="form-field">
               <span>Nepali date (BS) *</span>
@@ -1613,11 +1629,11 @@ function AddEntry({
 function Transactions({
   parties,
   entries,
-  role,
+  canWriteTransactions,
 }: {
   parties: Party[];
   entries: Entry[];
-  role: UserRole;
+  canWriteTransactions: boolean;
 }) {
   const [query, setQuery] =
     useState("");
@@ -1703,7 +1719,7 @@ function Transactions({
         eyebrow="LEDGER / STATEMENT"
         title="Statement"
         description="Review sales and payments. Filter the list or export the current results."
-        action={role !== "staff" ? () => go("add-entry") : undefined}
+        action={canWriteTransactions ? () => go("add-entry") : undefined}
         label="New transaction"
       />
 
@@ -1861,9 +1877,10 @@ function EditParty({
         className="form-panel party-form"
         onSubmit={submit}
       >
-        <h2>Party information</h2>
+        <div className="form-panel-heading"><span className="form-kicker">EDIT ACCOUNT</span><h2>Party information</h2><p>Update the details used throughout this party's ledger.</p></div>
 
         <div className="form-grid">
+          <div className="form-step-heading"><span>1</span><div><strong>Account identity</strong><small>Review the type, name, and contact details.</small></div></div>
           <div className="form-field">
             <span>Party type *</span>
             <PartyTypePicker value={form.partyType} onChange={(partyType) => setForm({ ...form, partyType })} />
@@ -1932,6 +1949,7 @@ function EditParty({
           </FormField>
         </div>
 
+        <div className="form-step-heading form-optional-heading"><span>2</span><div><strong>Extra context</strong><small>Optional notes stay with this party.</small></div></div>
         <FormField label="Notes">
           <textarea
             value={form.notes || ""}
@@ -2011,7 +2029,10 @@ function PartyDetail({
   remove,
   deleteTransactions,
   updateTransaction,
-  allowDelete,
+  canWriteParties,
+  canWriteTransactions,
+  canDeleteParties,
+  canDeleteTransactions,
 }: {
   party: Party;
   allParties: Party[];
@@ -2020,7 +2041,10 @@ function PartyDetail({
   remove: () => void;
   deleteTransactions: (ids: string[]) => Promise<string[]>;
   updateTransaction: (entry: Entry) => Promise<boolean>;
-  allowDelete: boolean;
+  canWriteParties: boolean;
+  canWriteTransactions: boolean;
+  canDeleteParties: boolean;
+  canDeleteTransactions: boolean;
 }) {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<Set<string>>(() => new Set());
   const [deletingTransaction, setDeletingTransaction] = useState(false);
@@ -2098,9 +2122,9 @@ function PartyDetail({
           party.company ||
           "Account overview and transaction history"
         }
-        action={() =>
+        action={canWriteTransactions ? () =>
           go(`add-entry/${encodeURIComponent(partySegment(party, allParties))}`)
-        }
+        : undefined}
         label="New transaction"
       />
 
@@ -2121,8 +2145,8 @@ function PartyDetail({
           Back to parties
         </button>
         <div className="party-actions">
-          <button className="outline-button" onClick={edit}>Edit party</button>
-          {allowDelete && <button className="delete-button" onClick={() => setConfirmingDelete("party")}>
+          {canWriteParties && <button className="outline-button" onClick={edit}>Edit party</button>}
+          {canDeleteParties && <button className="delete-button" onClick={() => setConfirmingDelete("party")}>
             <Trash2 size={14} />
             Delete party
           </button>}
@@ -2196,7 +2220,7 @@ function PartyDetail({
         </div>
         {exportError && <p className="party-export-error" role="alert">{exportError}</p>}
 
-        {allowDelete && selectedTransactions.length > 0 && (
+        {canDeleteTransactions && selectedTransactions.length > 0 && (
           <div className="selected-transaction-bar">
             <span>{selectedTransactions.length} transaction{selectedTransactions.length === 1 ? "" : "s"} selected</span>
             <div className="selected-transaction-actions">
@@ -2217,17 +2241,17 @@ function PartyDetail({
           emptyMessage="No transactions for this party yet."
           selectedIds={selectedTransactionIds}
           selectionDisabled={deletingTransaction}
-          onSelect={allowDelete ? (entry) => setSelectedTransactionIds((current) => {
+          onSelect={canDeleteTransactions ? (entry) => setSelectedTransactionIds((current) => {
             const next = new Set(current);
             if (next.has(entry.id)) next.delete(entry.id);
             else next.add(entry.id);
             return next;
           }) : undefined}
-          onEdit={setEditingTransaction}
+          onEdit={canWriteTransactions ? setEditingTransaction : undefined}
         />
       </section>
       {editingTransaction && <EditTransaction entry={editingTransaction} party={party} onClose={() => setEditingTransaction(null)} onSave={async (next) => { const success = await updateTransaction(next); if (success) setEditingTransaction(null); return success; }} />}
-      {allowDelete && confirmingDelete && createPortal(
+      {(canDeleteParties || canDeleteTransactions) && confirmingDelete && createPortal(
         <div className="delete-confirm-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmingDelete(null); }} onKeyDown={(event) => { if (event.key === "Escape") setConfirmingDelete(null); }}>
           <section className="delete-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-confirm-title" aria-describedby="delete-confirm-detail">
             <div className="delete-confirm-heading"><span aria-hidden="true"><Trash2 size={18} /></span><div><p className="delete-confirm-kicker">Permanent action</p><h2 id="delete-confirm-title">{confirmingDelete === "party" ? `Delete ${party.name}?` : `Delete ${selectedTransactions.length} transaction${selectedTransactions.length === 1 ? "" : "s"}?`}</h2></div></div>
@@ -2255,6 +2279,8 @@ function Login() {
 
   const [password, setPassword] =
     useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const [error, setError] =
     useState("");
@@ -2320,9 +2346,8 @@ function Login() {
 
               <label>
                 <span>Password</span>
-
-                <input
-                  type="password"
+                <span className="login-password-field"><input
+                  type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   placeholder="Enter your password"
@@ -2332,7 +2357,7 @@ function Login() {
                       event.target.value,
                     )
                   }
-                />
+                /><button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword((show) => !show)}>{showPassword ? "Hide" : "Show"}</button></span>
               </label>
             </div>
 
@@ -2390,8 +2415,13 @@ export default function App() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [roleError, setRoleError] = useState("");
   const role = profile?.userId === authUserId ? profile.role : null;
+  const has = (permission: Permission) => Boolean(profile?.permissions.includes(permission));
   const restrictedRoute = Boolean(role && (
-    (role === "staff" && current.path !== "dashboard") ||
+    (["parties", "transactions"].includes(current.path) && !has("ledger_view")) ||
+    (["add-party", "edit-party"].includes(current.path) && !has("parties_write")) ||
+    (current.path === "add-entry" && !has("transactions_write")) ||
+    (current.path === "reports" && !has("reports_view")) ||
+    (current.path === "sahakari" && !has("sahakari_view")) ||
     (current.path === "users" && !profile?.isOwner)
   ));
 
@@ -2439,7 +2469,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (current.path !== "parties" || !current.id || role === "staff") return;
+    if (current.path !== "parties" || !current.id || !has("ledger_view")) return;
     const party = parties.find((item) => item.id === current.id);
     if (!party) return;
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -2557,7 +2587,7 @@ export default function App() {
   const loadData = async () => {
     setLoadingData(true);
     setDataError("");
-    if (profile?.role === "staff") {
+    if (!profile?.permissions.includes("ledger_view")) {
       setParties([]);
       setEntries([]);
       setLoadingData(false);
@@ -3037,8 +3067,8 @@ export default function App() {
 
   /* ROUTES */
 
-  let page: ReactNode = role === "staff" ? <StaffOverview /> : (
-    <Dashboard parties={parties} entries={entries} role={role} />
+  let page: ReactNode = !has("ledger_view") && has("staff_balances_view") ? <StaffOverview /> : (
+    <Dashboard parties={parties} entries={entries} canWriteTransactions={has("transactions_write")} canViewParties={has("ledger_view")} />
   );
 
   if (restrictedRoute) {
@@ -3065,7 +3095,10 @@ export default function App() {
           }
           deleteTransactions={deleteTransactions}
           updateTransaction={updateTransaction}
-          allowDelete={role === "admin"}
+          canWriteParties={has("parties_write")}
+          canWriteTransactions={has("transactions_write")}
+          canDeleteParties={has("parties_delete")}
+          canDeleteTransactions={has("transactions_delete")}
         />
       );
     }
@@ -3120,7 +3153,7 @@ export default function App() {
       <Transactions
         parties={parties}
         entries={entries}
-        role={role}
+        canWriteTransactions={has("transactions_write")}
       />
     );
   } else if (current.path === "reports") {
@@ -3132,15 +3165,23 @@ export default function App() {
   }
 
   const lifetimeBalances = balancesByParty(entries);
+  const snapshot = {
+    outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100,
+    payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100,
+    partyCount: parties.length,
+    todayBs: todayDates().bs,
+  };
+
+  const shell = <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={snapshot}>
+    {page}
+  </Shell>;
 
   return (
     <>
-    {role !== "staff" ? <SahakariProvider key={profile.userId} userId={profile.userId} allowEdit={profile.permissions.includes("sahakari_edit")}>
-      <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: parties.reduce((total, party) => total + (party.partyType === "customer" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, payable: parties.reduce((total, party) => total + (party.partyType === "supplier" ? Math.max(0, lifetimeBalances.get(party.id) ?? 0) : 0), 0) / 100, partyCount: parties.length, todayBs: todayDates().bs }}>
-        {page}
-      </Shell>
-      <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
-    </SahakariProvider> : <Shell active="dashboard" contentKey="staff-dashboard" onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={{ outstanding: 0, payable: 0, partyCount: 0, todayBs: todayDates().bs }}>{page}</Shell>}
+    {has("sahakari_view") ? <SahakariProvider key={profile.userId} userId={profile.userId} canRecord={has("sahakari_record")} allowEdit={profile.permissions.includes("sahakari_edit")} isOwner={profile.isOwner} selectedId={current.path === "sahakari" ? current.id : undefined}>
+      {shell}
+    </SahakariProvider> : shell}
+    <ActionNotice notice={notice} dismiss={() => setNotice(null)} />
     </>
   );
 }

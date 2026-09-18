@@ -1,10 +1,31 @@
-.staff-overview { display: grid; gap: 20px; }
-.staff-balance-total { display: grid; gap: 8px; padding: 25px; }
-.staff-balance-total span { color: #75757d; font-size: 13px; }
-.staff-balance-total strong { font-size: 28px; }
-.staff-balance-list { padding: 20px 25px; }
-.staff-balance-list h2 { margin: 0 0 15px; font-size: 18px; }
-.staff-balance-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid #ececf0; font-size: 13px; }
-.staff-balance-list > div strong { white-space: nowrap; }
-.staff-balance-list p { color: #75757d; }
+.staff-overview { display: grid; gap: 22px; color: #243145; }
+.staff-balance-stats { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; }
+.staff-balance-stats > section { display: flex; min-height: 168px; flex-direction: column; align-items: flex-start; padding: 22px 26px; border: 1px solid #dfe7f2; border-radius: 16px; background: #fff; box-shadow: 0 9px 25px rgba(31, 60, 99, .04); }
+.staff-balance-stats .staff-balance-highlight { border-color: #2865ae; background: linear-gradient(125deg, #1c4e91, #2f72bf); color: #fff; }
+.staff-stat-icon { display: grid; width: 34px; height: 34px; margin-bottom: 14px; place-items: center; border-radius: 9px; background: #e9f1fb; color: #2868bd; }
+.staff-balance-highlight .staff-stat-icon { background: rgba(255,255,255,.17); color: #fff; }
+.staff-balance-stats span { font-size: 12px; opacity: .78; }
+.staff-balance-stats strong { margin-top: 5px; font-size: clamp(23px, 3vw, 32px); line-height: 1.2; overflow-wrap: anywhere; }
+.staff-balance-stats small { margin-top: 9px; font-size: 11px; opacity: .75; }
+.staff-balance-list { overflow: hidden; }
+.staff-balance-list-top { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 24px; }
+.staff-balance-list-top h2 { margin: 5px 0 0; font-size: 20px; }
+.staff-search { display: flex; align-items: center; gap: 9px; width: min(300px, 100%); min-height: 42px; padding: 0 12px; border: 1px solid #d7e0ec; border-radius: 9px; background: #fff; color: #718197; }
+.staff-search:focus-within { border-color: #3f7cc5; box-shadow: 0 0 0 3px rgba(63,124,197,.12); }
+.staff-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #243145; font: inherit; font-size: 13px; }
+.staff-search input::placeholder { color: #8b97a7; }
+.staff-list-summary { display: flex; justify-content: space-between; gap: 12px; padding: 0 24px 16px; color: #718197; font-size: 11px; }
+.staff-list-summary strong { color: #285f9f; }
+.staff-customer-header, .staff-customer-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(140px, auto); align-items: center; gap: 20px; }
+.staff-customer-header { padding: 11px 24px; border-top: 1px solid #e8edf4; border-bottom: 1px solid #e8edf4; background: #f7f9fc; color: #77879a; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.staff-customer-header span:last-child { text-align: right; }
+.staff-customer-row { min-height: 65px; padding: 10px 24px; border-bottom: 1px solid #edf1f5; font-size: 13px; }
+.staff-customer-row:last-child { border-bottom: 0; }
+.staff-customer-row > strong { color: #285f9f; text-align: right; white-space: nowrap; }
+.staff-customer-identity { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.staff-customer-identity strong { overflow-wrap: anywhere; }
+.staff-customer-avatar { display: grid; flex: 0 0 35px; width: 35px; height: 35px; place-items: center; border-radius: 10px; background: #eaf1fb; color: #2b66aa; font-size: 13px; font-weight: 800; }
+.staff-empty { margin: 0; padding: 25px; color: #718197; font-size: 13px; }
 .staff-balance-state { padding: 25px; }
+@media (max-width: 680px) { .staff-balance-stats { grid-template-columns: 1fr; }.staff-balance-stats > section { min-height: 145px; }.staff-balance-list-top { align-items: stretch; flex-direction: column; }.staff-search { width: 100%; } }
+@media (max-width: 430px) { .staff-customer-header, .staff-customer-row { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }.staff-customer-header, .staff-customer-row { padding-left: 15px; padding-right: 15px; }.staff-customer-row { font-size: 11px; }.staff-customer-avatar { flex-basis: 30px; width: 30px; height: 30px; }.staff-list-summary { padding-left: 15px; padding-right: 15px; } }
