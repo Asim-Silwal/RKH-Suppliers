@@ -732,28 +732,28 @@ body, .reference-app { background: #f5f5f7; }
 .profile-mobile-sections { display: none; }
 .reference-sidebar nav .nav-short-label { display: none; }
 @media (max-width: 600px) {
-  .reference-sidebar { padding: 4px max(8px, env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); background: rgba(255,255,255,.97); }
+  .reference-sidebar { padding: 6px max(10px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); background: rgba(255,255,255,.97); }
   .reference-sidebar nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; align-items: end; }
   .reference-sidebar nav .desktop-nav-only { display: none; }
-  .reference-sidebar nav .mobile-tab { position: relative; gap: 2px; min-height: 52px; padding: 2px; border-radius: 10px; font-size: 10px; line-height: 1.2; color: #657387; }
+  .reference-sidebar nav .mobile-tab { position: relative; gap: 5px; min-height: 60px; padding: 4px 2px; border-radius: 12px; font-size: 10px; line-height: 1.4; color: #657387; }
   .reference-sidebar nav .mobile-tab { grid-row: 1; }
   .mobile-tab-dashboard { grid-column: 1; }
   .mobile-tab-parties { grid-column: 2; }
   .mobile-tab-add-entry { grid-column: 3; }
   .mobile-tab-transactions { grid-column: 4; }
   .mobile-tab-reports { grid-column: 5; }
-  .reference-sidebar nav .mobile-tab svg { box-sizing: content-box; width: 20px; height: 20px; padding: 4px 10px; border-radius: 14px; transition: background-color .2s ease, color .2s ease; }
-  .reference-sidebar nav .mobile-tab > span { display: flex; align-items: center; justify-content: center; min-height: 12px; }
+  .reference-sidebar nav .mobile-tab svg { box-sizing: content-box; width: 22px; height: 22px; padding: 4px 10px; border-radius: 15px; transition: background-color .2s ease, color .2s ease; }
+  .reference-sidebar nav .mobile-tab > span { display: flex; align-items: center; justify-content: center; min-height: 14px; }
   .reference-sidebar nav .mobile-tab .nav-full-label { display: none; }
   .reference-sidebar nav .mobile-tab.nav-active { background: #f0f5fd; color: #174e9e; font-weight: 750; box-shadow: none; }
   .reference-sidebar nav .mobile-tab.nav-active svg { background: #dbeafe; color: #205fba; }
-  .reference-sidebar nav .mobile-tab.nav-active::after { content: ""; position: absolute; top: -4px; left: calc(50% - 10px); width: 20px; height: 2px; border-radius: 0 0 4px 4px; background: #2867c3; }
+  .reference-sidebar nav .mobile-tab.nav-active::after { content: ""; position: absolute; top: -6px; left: calc(50% - 10px); width: 20px; height: 2px; border-radius: 0 0 4px 4px; background: #2867c3; }
   .reference-sidebar nav .mobile-tab-add-entry { color: #205fba; font-weight: 750; }
-  .reference-sidebar nav .mobile-tab-add-entry svg { width: 20px; height: 20px; padding: 7px; margin-top: -6px; border: 2px solid #fff; border-radius: 13px; background: linear-gradient(145deg, #347ee4, #2058b0); color: #fff; box-shadow: 0 3px 8px rgba(32,88,176,.2); }
+  .reference-sidebar nav .mobile-tab-add-entry svg { width: 22px; height: 22px; padding: 7px; margin-top: -10px; border: 2px solid #fff; border-radius: 14px; background: linear-gradient(145deg, #347ee4, #2058b0); color: #fff; box-shadow: 0 3px 8px rgba(32,88,176,.2); }
   .reference-sidebar nav .mobile-tab-add-entry.nav-active svg { background: #174a96; color: #fff; box-shadow: 0 0 0 3px #bed8fb, 0 5px 14px rgba(32,88,176,.25); }
   .reference-sidebar nav .mobile-tab-add-entry.nav-active::after { display: none; }
   .reference-sidebar nav .mobile-tab:focus-visible, .profile-mobile-sections button:focus-visible { outline: 2px solid #2867c3; outline-offset: 2px; }
-  .reference-main { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .reference-main { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
   .profile-trigger.profile-section-active { outline: 3px solid #bdd7fb; outline-offset: 3px; }
   .profile-menu { max-height: calc(100dvh - 170px - env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
   .profile-mobile-sections:not(:empty) { display: grid; gap: 4px; padding: 9px 0; margin: 8px 0; border-block: 1px solid #e7edf5; }
