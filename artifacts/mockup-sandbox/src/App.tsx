@@ -308,10 +308,12 @@ function Shell({
               key={href}
               className={`${active === href ? "nav-active" : ""} ${mobilePrimaryPaths.includes(href) ? `mobile-tab mobile-tab-${href}` : "desktop-nav-only"}`}
               aria-current={active === href ? "page" : undefined}
+              aria-label={label}
               onClick={() => go(href)}
             >
               <Icon size={15} />
-              <span>{label}</span>
+              <span className={href === "add-entry" ? "nav-full-label" : undefined}>{label}</span>
+              {href === "add-entry" && <span className="nav-short-label" aria-hidden="true">Add</span>}
             </button>
           ))}
         </nav>
