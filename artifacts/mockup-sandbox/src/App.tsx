@@ -270,7 +270,7 @@ function Shell({
     };
   }, [menuOpen]);
   const can = (permission: Permission) => profile.permissions.includes(permission);
-  const mobilePrimaryPaths = ["dashboard", "parties", "add-entry", "transactions"];
+  const mobilePrimaryPaths = ["dashboard", "parties", "add-entry", "transactions", "reports"];
   const links = can("staff_balances_view") ? [
     ["dashboard", "Balances", LayoutDashboard],
   ] as const : [
@@ -311,7 +311,7 @@ function Shell({
               onClick={() => go(href)}
             >
               <Icon size={15} />
-              {label}
+              <span>{label}</span>
             </button>
           ))}
         </nav>
