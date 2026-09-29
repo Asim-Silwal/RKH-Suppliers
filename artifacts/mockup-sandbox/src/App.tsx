@@ -270,6 +270,7 @@ function Shell({
     };
   }, [menuOpen]);
   const can = (permission: Permission) => profile.permissions.includes(permission);
+  const mobilePrimaryPaths = ["dashboard", "parties", "add-entry", "transactions"];
   const links = can("staff_balances_view") ? [
     ["dashboard", "Balances", LayoutDashboard],
   ] as const : [
@@ -305,7 +306,8 @@ function Shell({
           {links.map(([href, label, Icon]) => (
             <button
               key={href}
-              className={active === href ? "nav-active" : ""}
+              className={`${active === href ? "nav-active" : ""} ${mobilePrimaryPaths.includes(href) ? `mobile-tab mobile-tab-${href}` : "desktop-nav-only"}`}
+              aria-current={active === href ? "page" : undefined}
               onClick={() => go(href)}
             >
               <Icon size={15} />
@@ -332,12 +334,19 @@ function Shell({
           <button type="button" className="mobile-brand" onClick={() => go("dashboard")} aria-label="RKH Ledger dashboard">
             <img src={ledgerMark} alt="" /><span>RKH Ledger</span>
           </button>
-          <button type="button" className="profile-trigger" aria-label="Open profile" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+          <button type="button" className={`profile-trigger${!mobilePrimaryPaths.includes(active) ? " profile-section-active" : ""}`} aria-label="Open profile and more sections" aria-expanded={menuOpen} aria-controls="profile-menu" onClick={() => setMenuOpen((open) => !open)}>
             <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
           </button>
-          {menuOpen && <div className="profile-menu">
+          {menuOpen && <div className="profile-menu" id="profile-menu">
             <div className="profile-menu-person"><ProfileAvatar profile={profile} avatarUrl={avatarUrl} /><div><strong>{profile.fullName || "Your profile"}</strong><small>{profile.email}</small></div></div>
             <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{profile.roleName}</dd></div></dl>
+            <nav className="profile-mobile-sections" aria-label="More sections">
+              {links.filter(([href]) => !mobilePrimaryPaths.includes(href)).map(([href, label, Icon]) => (
+                <button type="button" key={href} aria-current={active === href ? "page" : undefined} onClick={() => { setMenuOpen(false); go(href); }}>
+                  <Icon size={19} /><span>{label}</span><ArrowRight size={15} />
+                </button>
+              ))}
+            </nav>
             <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
