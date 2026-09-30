@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, KeyRound, Plus, Shield, Trash2, UsersRound, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { adToBs } from "../lib/kathmanduTime";
 import "./UserManagement.css";
 
@@ -9,6 +10,24 @@ export type UserRole = string;
 export type Permission = "ledger_view" | "parties_write" | "parties_delete" | "transactions_write" | "transactions_delete" | "reports_view" | "sahakari_view" | "sahakari_record" | "sahakari_edit" | "staff_balances_view";
 export type AppRole = { role_key: UserRole; name: string; permissions: Permission[]; is_system: boolean };
 type AppUser = { user_id: string; email: string; full_name: string | null; role_key: UserRole; created_at: string };
+
+async function invokeAccountFunction(name: string, options: { body: Record<string, unknown> }) {
+  try {
+    const result = await supabase.functions.invoke(name, options);
+    if (result.error instanceof FunctionsHttpError) {
+      try {
+        const body = await result.error.context.json();
+        const message = typeof body?.error === "string" ? body.error : body?.message;
+        if (typeof message === "string" && message.trim()) {
+          return { data: result.data, error: new Error(message) };
+        }
+      } catch { /* Fall back when the server response is not JSON. */ }
+    }
+    return result;
+  } catch {
+    return { data: null, error: new Error("Could not reach the server. Check your connection and try again.") };
+  }
+}
 
 const descriptions: Record<Permission, string> = {
   ledger_view: "View the full ledger",
@@ -71,7 +90,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   const createUser = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true); setError(""); setMessage("");
-    const { data, error: inviteError } = await supabase.functions.invoke("create-user", {
+    const { data, error: inviteError } = await invokeAccountFunction("create-user", {
       body: { email: email.trim(), fullName: fullName.trim(), role: inviteRole, password },
     });
     if (inviteError || data?.error) setError(data?.error ?? inviteError?.message ?? "Could not create user.");
@@ -89,7 +108,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
     event.preventDefault();
     if (!resetUser) return;
     setBusy(true); setError(""); setMessage("");
-    const { data, error: functionError } = await supabase.functions.invoke("set-user-password", {
+    const { data, error: functionError } = await invokeAccountFunction("set-user-password", {
       body: { userId: resetUser.user_id, password: resetPassword },
     });
     if (functionError || data?.error) setError(data?.error ?? functionError?.message ?? "Could not set password.");
@@ -125,7 +144,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   const deleteUser = async (user: AppUser) => {
     if (!window.confirm(`Permanently delete ${user.full_name || user.email}? They will lose access, while recorded Sahakari history remains.`)) return;
     setBusy(true); setError(""); setMessage("");
-    const { data, error: functionError } = await supabase.functions.invoke("delete-user", { body: { userId: user.user_id } });
+    const { data, error: functionError } = await invokeAccountFunction("delete-user", { body: { userId: user.user_id } });
     if (functionError || data?.error) setError(data?.error ?? functionError?.message ?? "Could not delete user.");
     else {
       setMessage(`${user.full_name || user.email} was deleted.`);
@@ -199,7 +218,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
       <div><span className="eyebrow">OWNER ACCESS / TEAM CONTROL</span><h1>Access control</h1><p>Accounts, credentials, and the permissions behind every role.</p></div>
       <span className="admin-owner-badge"><Shield size={15} /> Owner only</span>
     </header>
-    {error && <div className="admin-console-alert error" role="alert">{error}</div>}
+    {error && !panelOpen && <div className="admin-console-alert error" role="alert">{error}</div>}
     {message && <div className="admin-console-alert success" role="status"><Check size={15} /> {message}</div>}
     <div className="admin-console-stats">
       <div><UsersRound size={18} /><span>Active users</span><strong>{users.length}</strong></div>
@@ -230,6 +249,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
 
     {panelOpen && createPortal(<div className="admin-drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closePanel(); }}><aside className="admin-drawer" role="dialog" aria-modal="true" aria-label={addUserOpen ? "Add user" : newRoleOpen ? "New role" : "Set new password"}>
       <div className="admin-drawer-header"><div><span className="eyebrow">ACCESS CONTROL</span><h2>{addUserOpen ? "Create account" : newRoleOpen ? "Create role" : "Set new password"}</h2></div><button type="button" aria-label="Close panel" onClick={closePanel}><X size={19} /></button></div>
+      {error && <div className="admin-console-alert error" role="alert">{error}</div>}
       {addUserOpen && <form className="admin-drawer-form" onSubmit={(event) => void createUser(event)}>
         <p className="admin-drawer-note">Set the email ID and password here. No invitation email is sent.</p>
         <div className="admin-form-section"><span>1</span><strong>Account identity</strong></div>
