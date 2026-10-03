@@ -52,6 +52,10 @@
 .sahakari-modal form label { display: grid; gap: 7px; font-size: 12px; font-weight: 650; }
 .sahakari-modal input, .sahakari-modal textarea { width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid #d9d9de; border-radius: 7px; background: #fff; color: #242428; font-size: 14px; }
 .sahakari-modal textarea { resize: vertical; }
+.sahakari-record-date { min-width: 0; margin: 0 0 18px; padding: 0; border: 0; }
+.sahakari-record-date legend { margin-bottom: 8px; font-size: 12px; font-weight: 650; }
+.sahakari-record-date small { display: block; margin-top: 7px; color: #71717a; font-size: 11px; }
+.sahakari-choice button:disabled { cursor: default; opacity: .65; }
 .sahakari-error { margin: 0; color: #9b3030; font-size: 12px; }
 .sahakari-modal-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 @media (max-width: 1050px) { .sahakari-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

@@ -37,7 +37,7 @@ const descriptions: Record<Permission, string> = {
   transactions_delete: "Delete transactions",
   reports_view: "View reports",
   sahakari_view: "View Sahakari",
-  sahakari_record: "Record today's Sahakari deposit once",
+  sahakari_record: "Record Sahakari deposits for today or previous dates",
   sahakari_edit: "Edit saved Sahakari records",
   staff_balances_view: "View customer names and outstanding balances only",
 };
