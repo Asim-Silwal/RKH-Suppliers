@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Download, Landmark, Plus, X } from "lucide-react";
+import { ArrowLeft, Download, Landmark, Pencil, Plus, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import statementFontUrl from "../assets/NotoSansDevanagariUI-Regular.ttf?url";
 import {
@@ -23,7 +23,7 @@ type SahakariState = {
   allowEdit: boolean;
   message: string;
   refresh: () => Promise<boolean>;
-  openRecord: () => void;
+  openRecord: (date?: string) => void;
 };
 
 const SahakariContext = createContext<SahakariState | null>(null);
@@ -44,6 +44,7 @@ export function SahakariProvider({ userId, canRecord, allowEdit, isOwner, select
   const previousTime = useRef(time);
   const [dismissedDate, setDismissedDate] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [editDate, setEditDate] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -86,12 +87,18 @@ export function SahakariProvider({ userId, canRecord, allowEdit, isOwner, select
 
   return <SahakariContext.Provider value={{
     cooperatives, selectedId, isOwner, entries, loading, error, time, userId, canRecord, allowEdit, message, refresh,
-    openRecord: () => { if (!canRecord || !selectedCooperative) return; setMessage(""); setManualOpen(true); },
+    openRecord: (date) => {
+      if (!selectedCooperative || (date ? !allowEdit : !canRecord)) return;
+      if (date && !entries.some((entry) => entry.cooperativeId === selectedCooperative.id && entry.entryDate === date)) return;
+      setEditDate(date ?? null); setMessage(""); setManualOpen(true);
+    },
   }}>
     {children}
-    {modalCooperative && !error && canRecord && (autoOpen || manualOpen) && <SahakariReminderModal
-      key={`${modalCooperative.id}:${time.date}:${todayEntry?.id ?? "new"}`}
+    {modalCooperative && !error && (canRecord || (manualOpen && allowEdit)) && (autoOpen || manualOpen) && <SahakariReminderModal
+      key={`${modalCooperative.id}:${manualOpen ? editDate : time.date}:${todayEntry?.id ?? "new"}`}
       cooperative={modalCooperative}
+      editDate={manualOpen ? editDate : null}
+      canRecord={canRecord}
       entries={entries}
       allowEdit={allowEdit}
       today={time.date}
@@ -107,16 +114,18 @@ export function SahakariProvider({ userId, canRecord, allowEdit, isOwner, select
   </SahakariContext.Provider>;
 }
 
-function SahakariReminderModal({ cooperative, entries, allowEdit, today, userId, onClose, onSaved }: {
+function SahakariReminderModal({ cooperative, entries, allowEdit, canRecord, editDate, today, userId, onClose, onSaved }: {
   cooperative: Cooperative;
   entries: CooperativeEntry[];
   allowEdit: boolean;
+  canRecord: boolean;
+  editDate: string | null;
   today: string;
   userId: string;
   onClose: () => void;
   onSaved: (message: string) => Promise<void>;
 }) {
-  const [recordDate, setRecordDate] = useState(today);
+  const [recordDate, setRecordDate] = useState(editDate ?? today);
   const entry = entries.find((item) => item.cooperativeId === cooperative.id && item.entryDate === recordDate) ?? null;
   const readOnly = Boolean(entry && !allowEdit);
   const [choice, setChoice] = useState<"yes" | "no" | null>(entry ? entry.deposited ? "yes" : "no" : null);
@@ -141,6 +150,10 @@ function SahakariReminderModal({ cooperative, entries, allowEdit, today, userId,
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving || readOnly) return;
+    if (!entry && (editDate || !canRecord)) {
+      setError("This record is no longer available. Close this window and refresh the history.");
+      return;
+    }
     if (!recordDate || recordDate > kathmanduNow().date) {
       setError("Choose today or a previous date.");
       return;
@@ -184,8 +197,8 @@ function SahakariReminderModal({ cooperative, entries, allowEdit, today, userId,
   return createPortal(<div className="sahakari-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
     <section className="sahakari-modal" role="dialog" aria-modal="true" aria-labelledby="sahakari-reminder-title">
       <div className="sahakari-modal-heading"><div><span className="eyebrow">DAILY SAVING · {adToBs(recordDate)} BS</span><h2 id="sahakari-reminder-title">{cooperative.name}</h2></div><button type="button" aria-label="Close reminder" onClick={onClose} disabled={saving}><X size={18} /></button></div>
-      <p className="sahakari-modal-intro">Choose today or a previous day. Each date can be recorded once.</p>
-      <fieldset className="sahakari-record-date" disabled={saving}>
+      <p className="sahakari-modal-intro">{editDate ? "Edit this record's deposit status, amount, or reason. Its date stays the same." : "Choose today or a previous day. Each date can be recorded once."}</p>
+      <fieldset className="sahakari-record-date" disabled={saving || Boolean(editDate)}>
         <legend>Record date (BS)</legend>
         <NepaliDatePicker value={adToBs(recordDate)} onChange={(_bs, ad) => { if (!saving) setRecordDate(ad); }} />
         <small>{recordDate} AD{recordDate === today ? " · Today" : ""}</small>
@@ -199,7 +212,7 @@ function SahakariReminderModal({ cooperative, entries, allowEdit, today, userId,
         {choice === "yes" ? <label>Amount saved <span className="sahakari-money-input"><span>NPR</span><input required type="number" min="0.01" step="0.01" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} /></span></label>
           : <label>Why was the deposit not made?<textarea required rows={4} placeholder="Bank closed, cash shortage, holiday, shop closed, etc." value={reason} onChange={(event) => setReason(event.target.value)} /></label>}
         {error && <p className="sahakari-error" role="alert">{error}</p>}
-        <div className="sahakari-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Close</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : choice === "yes" ? "Save deposit" : "Save reason"}</button></div>
+        <div className="sahakari-modal-actions"><button type="button" className="outline-button" onClick={onClose} disabled={saving}>Close</button><button type="submit" className="black-button" disabled={saving}>{saving ? "Saving..." : entry ? "Save changes" : choice === "yes" ? "Save deposit" : "Save reason"}</button></div>
       </form>}
     </section>
   </div>, document.body);
@@ -214,7 +227,7 @@ function openSahakari(id?: string) {
 }
 
 export function SahakariPage() {
-  const { cooperatives, selectedId, isOwner, entries: allEntries, loading, error, time, canRecord, message, refresh, openRecord } = useSahakari();
+  const { cooperatives, selectedId, isOwner, entries: allEntries, loading, error, time, canRecord, allowEdit, message, refresh, openRecord } = useSahakari();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newAmount, setNewAmount] = useState("5000");
@@ -302,7 +315,7 @@ export function SahakariPage() {
   return <div className="sahakari-page">
     {selectedId && <button type="button" className="sahakari-back" onClick={() => openSahakari()}><ArrowLeft size={16} /> All Sahakari</button>}
     <header className="reference-header"><div><span className="eyebrow">COOPERATIVE SAVINGS · {adToBs(time.date)} BS</span><h1>{cooperative?.name ?? "Sahakari"}</h1><p>{cooperative ? "Daily savings and deposit history" : "Select a cooperative to view its savings and daily records."}</p></div>
-      {cooperative && !loading && !error && canRecord && <button type="button" className="black-button" onClick={openRecord}><Plus size={16} /> Record deposit</button>}
+      {cooperative && !loading && !error && canRecord && <button type="button" className="black-button" onClick={() => openRecord()}><Plus size={16} /> Record deposit</button>}
       {!selectedId && isOwner && !loading && !error && <button type="button" className="black-button" onClick={() => { setCreateError(""); setAdding(true); }}><Plus size={16} /> Add Sahakari</button>}</header>
     {message && <p className="sahakari-message" role="status">{message}</p>}
     {error && <section className="reference-panel sahakari-state" role="alert"><p>{error}</p><button type="button" className="outline-button" onClick={() => void refresh()}>Try again</button></section>}
@@ -330,7 +343,7 @@ export function SahakariPage() {
       </div>
       <section className="reference-panel sahakari-history"><div className="panel-heading"><div><span className="eyebrow">SAVINGS HISTORY</span><h2>Daily records</h2></div><div className="sahakari-history-actions"><label>Month (BS)<select value={historyMonth} onChange={(event) => setHistoryMonth(event.target.value)}><option value="all">All dates</option>{historyMonths.map((month) => <option key={month} value={month}>{month} BS</option>)}</select></label><button type="button" className="outline-button sahakari-download" onClick={() => void downloadRecords()} disabled={history.length === 0 || exporting}><Download size={16} /> {exporting ? "Preparing PDF..." : "Download PDF"}</button></div></div>
         {exportError && <p className="sahakari-error sahakari-export-error" role="alert">{exportError}</p>}
-        <div className="sahakari-table-scroll"><table><thead><tr><th>Date (BS)</th><th>Status</th><th>Amount</th><th>Balance</th><th>Reason</th><th>Recorded by</th></tr></thead><tbody>{history.map((entry) => <tr key={entry.id}><td>{adToBs(entry.entryDate)} BS</td><td>{entry.deposited ? "Deposited" : "Not deposited"}</td><td>{entry.deposited && entry.amount !== null ? money(entry.amount) : "—"}</td><td>{money(balanceByEntry.get(entry.id) ?? 0)}</td><td>{entry.reason || "—"}</td><td>{entry.recordedByName ?? (entry.recordedBy ? "Unnamed user" : "—")}</td></tr>)}</tbody></table>{history.length === 0 && <p className="sahakari-empty">No records for this selection.</p>}</div>
+        <div className="sahakari-table-scroll"><table><thead><tr><th>Date (BS)</th><th>Status</th><th>Amount</th><th>Balance</th><th>Reason</th><th>Recorded by</th>{allowEdit && <th>Actions</th>}</tr></thead><tbody>{history.map((entry) => <tr key={entry.id}><td>{adToBs(entry.entryDate)} BS</td><td>{entry.deposited ? "Deposited" : "Not deposited"}</td><td>{entry.deposited && entry.amount !== null ? money(entry.amount) : "—"}</td><td>{money(balanceByEntry.get(entry.id) ?? 0)}</td><td>{entry.reason || "—"}</td><td>{entry.recordedByName ?? (entry.recordedBy ? "Unnamed user" : "—")}</td>{allowEdit && <td><button type="button" className="outline-button sahakari-edit-record" aria-label={`Edit Sahakari record for ${adToBs(entry.entryDate)} BS`} onClick={() => openRecord(entry.entryDate)}><Pencil size={14} /> Edit</button></td>}</tr>)}</tbody></table>{history.length === 0 && <p className="sahakari-empty">No records for this selection.</p>}</div>
       </section>
     </>}
     {adding && createPortal(<div className="sahakari-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !savingCooperative) setAdding(false); }}><section className="sahakari-modal" role="dialog" aria-modal="true" aria-label="Add Sahakari"><div className="sahakari-modal-heading"><div><span className="eyebrow">COOPERATIVE SAVINGS</span><h2>Add Sahakari</h2></div><button type="button" aria-label="Close" disabled={savingCooperative} onClick={() => setAdding(false)}><X size={18} /></button></div><p className="sahakari-modal-intro">Give this cooperative a clear name and set the amount suggested for daily deposits.</p><form onSubmit={(event) => void addCooperative(event)}><label>Cooperative name<input required maxLength={160} value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="e.g. Subha Bitta Multipurpose Co-operative Ltd." /></label><label>Suggested daily deposit <span className="sahakari-money-input"><span>NPR</span><input required type="number" min="0.01" step="0.01" value={newAmount} onChange={(event) => setNewAmount(event.target.value)} /></span><small>You can enter a different amount for each daily record.</small></label>{createError && <p className="sahakari-error" role="alert">{createError}</p>}<div className="sahakari-modal-actions"><button type="button" className="outline-button" onClick={() => setAdding(false)} disabled={savingCooperative}>Cancel</button><button type="submit" className="black-button" disabled={savingCooperative}>{savingCooperative ? "Adding..." : "Add Sahakari"}</button></div></form></section></div>, document.body)}

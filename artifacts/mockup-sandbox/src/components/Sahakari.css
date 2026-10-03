@@ -56,6 +56,7 @@
 .sahakari-record-date legend { margin-bottom: 8px; font-size: 12px; font-weight: 650; }
 .sahakari-record-date small { display: block; margin-top: 7px; color: #71717a; font-size: 11px; }
 .sahakari-choice button:disabled { cursor: default; opacity: .65; }
+.sahakari-edit-record { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; white-space: nowrap; }
 .sahakari-error { margin: 0; color: #9b3030; font-size: 12px; }
 .sahakari-modal-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 @media (max-width: 1050px) { .sahakari-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
