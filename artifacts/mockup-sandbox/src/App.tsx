@@ -38,7 +38,7 @@ import { SahakariPage, SahakariProvider } from "./components/Sahakari";
 import { UserManagement, type UserRole, type Permission } from "./components/UserManagement";
 import { StaffOverview } from "./components/StaffOverview";
 import NepaliDate from "nepali-date-converter";
-import ledgerMark from "./assets/rkh-ledger-mark.svg";
+const ledgerMark = `${import.meta.env.BASE_URL}brand/logo.png`;
 import statementFontUrl from "./assets/NotoSansDevanagariUI-Regular.ttf?url";
 
 type EntryType = "PURCHASE" | "PAYMENT";

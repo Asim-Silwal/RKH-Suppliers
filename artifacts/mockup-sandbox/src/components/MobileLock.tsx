@@ -1,6 +1,5 @@
 ﻿import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { LockKeyhole } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { enrollDevice, unlockDevice, type DeviceCredential } from "../lib/deviceLock";
 
@@ -125,7 +124,7 @@ export function MobileLock({ children }: { children: ReactNode }) {
     {account && mountedAccount === account.id && children}
     {locked && createPortal(<main id="mobile-lock-root" className="mobile-lock-screen">
       <section className="mobile-lock-card">
-        <span className="mobile-lock-icon"><LockKeyhole size={28} /></span>
+        <img className="mobile-lock-logo" src={`${import.meta.env.BASE_URL}brand/logo.png`} alt="RKH Suppliers Kathmandu" />
         <span className="mobile-lock-brand">RKH LEDGER</span>
         <h1>{!ready ? "Opening securely" : credential ? "Your ledger is locked" : "Protect this device"}</h1>
         <p>{!ready ? "Checking your session…" : credential ? "Verify with Face ID, Touch ID, or your device passcode to continue." : "Confirm your account password, then set up a passkey to lock your ledger whenever you leave the app."}</p>

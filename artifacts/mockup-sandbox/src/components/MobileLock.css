@@ -20,3 +20,5 @@
   button, a { touch-action: manipulation; }
 }
 .profile-menu > .mobile-lock-menu-action { display: none; } @media (pointer: coarse) { .profile-menu > .mobile-lock-menu-action { display: flex; } }
+
+.mobile-lock-logo { display: block; width: 112px; height: 112px; margin: 0 auto 20px; border-radius: 20px; object-fit: contain; }
