@@ -21,12 +21,11 @@ export type CooperativeEntry = {
 };
 
 export async function loadSahakari(): Promise<{ cooperatives: Cooperative[]; entries: CooperativeEntry[] }> {
-  const { data: cooperatives, error: cooperativeError } = await supabase
+  const metadataPromise = Promise.all([supabase
     .from("cooperatives")
     .select("id, name, default_daily_amount")
     .eq("is_active", true)
-    .order("created_at", { ascending: true });
-  if (cooperativeError) throw new Error(cooperativeError.message);
+    .order("created_at", { ascending: true }), supabase.rpc("cooperative_recorder_names")]);
 
   const entries: Array<{ id: string; cooperative_id: string; entry_date: string; deposited: boolean; amount: number | null; reason: string | null; recorded_by: string | null; recorded_by_name: string | null }> = [];
   for (let offset = 0; ; offset += 500) {
@@ -41,7 +40,8 @@ export async function loadSahakari(): Promise<{ cooperatives: Cooperative[]; ent
     if (!page || page.length < 500) break;
   }
 
-  const { data: recorders, error: recordersError } = await supabase.rpc("cooperative_recorder_names");
+  const [{ data: cooperatives, error: cooperativeError }, { data: recorders, error: recordersError }] = await metadataPromise;
+  if (cooperativeError) throw new Error(cooperativeError.message);
   if (recordersError) throw new Error(recordersError.message);
   const names = new Map<string, string | null>((recorders ?? []).map((recorder: { user_id: string; full_name: string | null }) =>
     [recorder.user_id, recorder.full_name?.trim() || null]));

@@ -46,19 +46,27 @@ export function SahakariProvider({ userId, canRecord, allowEdit, isOwner, select
   const [manualOpen, setManualOpen] = useState(false);
   const [editDate, setEditDate] = useState<string | null>(null);
 
+  const refreshing = useRef(false);
+  const refreshAgain = useRef(false);
+  const lastRefresh = useRef(0);
   const refresh = useCallback(async () => {
+    if (refreshing.current) { refreshAgain.current = true; return false; }
+    refreshing.current = true;
     setLoading(true);
     setError("");
     try {
       const data = await loadSahakari();
       setCooperatives(data.cooperatives);
       setEntries(data.entries);
+      lastRefresh.current = Date.now();
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load Sahakari data.");
       return false;
     } finally {
+      refreshing.current = false;
       setLoading(false);
+      if (refreshAgain.current) { refreshAgain.current = false; void refresh(); }
     }
   }, []);
 
@@ -70,7 +78,7 @@ export function SahakariProvider({ userId, canRecord, allowEdit, isOwner, select
       previousTime.current = next;
       setTime(next);
     };
-    const onFocus = () => { void refresh(); updateTime(); };
+    const onFocus = () => { if (Date.now() - lastRefresh.current > 60_000) void refresh(); updateTime(); };
     const interval = window.setInterval(updateTime, 60_000);
     window.addEventListener("focus", onFocus);
     return () => { window.clearInterval(interval); window.removeEventListener("focus", onFocus); };

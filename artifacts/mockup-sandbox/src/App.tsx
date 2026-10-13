@@ -160,11 +160,14 @@ const partySaveErrorMessage = (message: string) =>
     ? "Supplier setup needs the party type database update. Apply the included Supabase migration, then try again."
     : message || "Please try again.";
 
+const balanceCache = new WeakMap<Entry[], Map<string, number>>();
 const balancesByParty = (entries: Entry[]) => {
+  const cached = balanceCache.get(entries); if (cached) return cached;
   const balances = new Map<string, number>();
   for (const entry of entries) {
     balances.set(entry.partyId, (balances.get(entry.partyId) ?? 0) + (entry.type === "PURCHASE" ? toCents(entry.amount) : -toCents(entry.amount)));
   }
+  balanceCache.set(entries, balances);
   return balances;
 };
 
@@ -350,6 +353,7 @@ function Shell({
               ))}
             </nav>
             <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
+            <button type="button" className="mobile-lock-menu-action" onClick={() => { setMenuOpen(false); window.dispatchEvent(new Event("rkh-lock")); }}>Lock app</button>
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
         </div>
@@ -1145,11 +1149,13 @@ function AddParty({
   });
 
   const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
 
   const [error, setError] = useState("");
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (saveInFlight.current) return;
 
     if (!form.name.trim()) {
       return;
@@ -1160,12 +1166,21 @@ function AddParty({
       return;
     }
 
+    saveInFlight.current = true;
     setSaving(true);
     setError("");
 
-    const success = await save(form);
+    let success = false;
+    try {
+      success = await save(form);
 
-    setSaving(false);
+    } catch {
+      setError("The save could not be confirmed. Check the ledger before retrying to avoid a duplicate.");
+      return;
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
+    }
 
     if (success) {
       go(`parties?type=${form.partyType}`);
@@ -1385,10 +1400,13 @@ function AddEntry({
   const remainingCents = Math.max(0, purchaseCents - paidNowCents);
   const invalidPaidNow = form.type === "PURCHASE" && partiallyPaid && (paidNowCents <= 0 || paidNowCents >= purchaseCents);
 
+  const saveInFlight = useRef(false);
+
   const submit = async (
     event: FormEvent,
   ) => {
     event.preventDefault();
+    if (saveInFlight.current) return;
 
     if (!form.partyId) {
       setError("Select a party from the suggestions.");
@@ -1414,10 +1432,13 @@ function AddEntry({
       return;
     }
 
+    saveInFlight.current = true;
     setSaving(true);
     setError("");
 
-    const success = await save({
+    let success = false;
+    try {
+      success = await save({
       partyId: form.partyId,
       type: form.type,
       amount: purchaseCents / 100,
@@ -1427,7 +1448,13 @@ function AddEntry({
       description: form.description,
     });
 
-    setSaving(false);
+    } catch {
+      setError("The save could not be confirmed. Check the ledger before retrying to avoid a duplicate.");
+      return;
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
+    }
 
     if (success) {
       go("transactions");
@@ -2445,7 +2472,7 @@ export default function App() {
   const [
     loadingData,
     setLoadingData,
-  ] = useState(false);
+  ] = useState(true);
 
   const [dataError, setDataError] =
     useState("");
@@ -2527,28 +2554,23 @@ export default function App() {
     setRoleError("");
 
     const loadRole = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (userError || !user || user.id !== authUserId) {
-        setRoleError(userError?.message ?? "Could not verify your account.");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("role, full_name, contact, avatar_path")
-        .eq("id", user.id)
-        .single();
-      if (cancelled) return;
-      if (error || !data?.role) {
-        setRoleError(error?.message ?? "Your account has no valid access role.");
-        return;
-      }
-
-      const [roleResult, ownerResult] = await Promise.all([
-        supabase.from("app_roles").select("name, permissions").eq("role_key", data.role).single(),
+      const [userResult, profileResult, ownerResult] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("profiles").select("role, full_name, contact, avatar_path").eq("id", authUserId).single(),
         supabase.rpc("is_app_owner"),
       ]);
+      if (cancelled) return;
+      const user = userResult.data.user;
+      const data = profileResult.data;
+      if (userResult.error || !user || user.id !== authUserId) {
+        setRoleError(userResult.error?.message ?? "Could not verify your account.");
+        return;
+      }
+      if (profileResult.error || !data?.role) {
+        setRoleError(profileResult.error?.message ?? "Your account has no valid access role.");
+        return;
+      }
+      const roleResult = await supabase.from("app_roles").select("name, permissions").eq("role_key", data.role).single();
       if (cancelled) return;
       if (roleResult.error || ownerResult.error || !roleResult.data) {
         setRoleError(roleResult.error?.message ?? ownerResult.error?.message ?? "Could not load access permissions.");
@@ -2611,12 +2633,12 @@ export default function App() {
     ] = await Promise.all([
       supabase
         .from("parties")
-        .select("*")
+        .select("id, party_type, name, company_name, contact, location, notes")
         .order("name"),
 
       supabase
         .from("transactions")
-        .select("*")
+        .select("id, party_id, type, amount, date_ad, date_bs, description")
         .order("date_ad", {
           ascending: false,
         })
