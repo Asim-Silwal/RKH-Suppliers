@@ -49,7 +49,7 @@ test("service worker shows branded push and focuses the app without arbitrary na
   vm.runInNewContext(readFileSync(new URL('../public/sw.js',import.meta.url),'utf8'),{URL,self:{
     addEventListener:(name:string,fn:any)=>handlers[name]=fn,
     registration:{scope:'https://example.com/app/',showNotification:async(...args:any[])=>shown.push(args)},
-    clients:{matchAll:async()=>[{url:'https://example.com/app/parties',focus:async()=>{focused=true;}}]},
+    clients:{matchAll:async()=>[{url:'https://example.com/app/parties',navigate:async(url:string)=>{assert.equal(url,'https://example.com/app/inbox');},focus:async()=>{focused=true;}}]},
   }});
   let pending: any;
   handlers.push({data:{json:()=>({title:'Update',body:'Message',id:'test'})},waitUntil:(p:any)=>pending=p});await pending;
@@ -75,6 +75,6 @@ test("send reports accepted, failed and expired devices and removes expired subs
 test("retry does not resend and rate limit and no-device states are explicit",async()=>{
   const duplicate=harness({previous:{status:"complete",accepted:3}}); await duplicate.call(message); assert.equal(duplicate.deliveries.length,0);
   const limited=harness({count:5}); assert.equal((await limited.call(message)).status,429);
-  const empty=harness({outcomes:[]}); assert.equal((await empty.call(message)).status,400);
+  const empty=harness({outcomes:[]}); assert.equal((await empty.call(message)).status,200); assert.ok(empty.writes.some(w=>w.table==='notification_sends' && w.operation==='insert'),'Save inbox message even without push devices');
   const invalid=harness(); assert.equal((await invalid.call({...message,title:""})).status,400);
 });

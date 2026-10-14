@@ -68,15 +68,15 @@ Deno.serve(async (req) => {
     if (input.recipient !== "all") query = query.eq("user_id", input.recipient);
     const { data: subscriptions, error: subError } = await query.limit(201);
     if (subError) throw subError;
+    const devices = subscriptions ?? [];
     if (subscriptions && subscriptions.length > 200) return reply({ error: "Too many devices for one send. Select an individual user." }, 400);
-    if (!subscriptions?.length) return reply({ error: "No enabled devices for these recipients. Ask them to enable notifications in their profile." }, 400);
     const { error: insertError } = await admin.from("notification_sends").insert({ id: input.id, sender_id: user.id, recipient_id: input.recipient === "all" ? null : input.recipient, title, body });
     if (insertError?.code === "23505") return reply({ error: "This notification is already being sent. Check recent sends." }, 409);
     if (insertError) throw insertError;
     let accepted = 0, failed = 0, expired = 0;
     // Bound concurrency and timeouts to keep a small team send within the function budget.
-    for (let i = 0; i < subscriptions.length; i += 20) {
-      await Promise.all(subscriptions.slice(i, i + 20).map(async (s) => {
+    for (let i = 0; i < devices.length; i += 20) {
+      await Promise.all(devices.slice(i, i + 20).map(async (s) => {
         if (!validEndpoint(s.endpoint)) { failed++; return; }
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title, body, id: input.id }), { vapidDetails: { subject: "https://rkh-suppliers-mockup-sandbox.vercel.app", publicKey, privateKey }, TTL: 86400, timeout: 8000 });

@@ -1,4 +1,4 @@
-import { NotificationAdminPage, NotificationSettings } from "./components/Notifications";
+import { NotificationAdminPage, NotificationInbox } from "./components/Notifications";
 import {
   type FormEvent,
   type ReactNode,
@@ -222,7 +222,7 @@ function currentRoute() {
 function go(path: string) {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  window.history.pushState({}, "", `${base}/${path}`);
+  window.history.pushState({ fromApp: true }, "", `${base}/${path}`);
 
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
@@ -253,7 +253,6 @@ function Shell({
   snapshot: { outstanding: number; payable: number; partyCount: number; todayBs: string };
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -288,6 +287,8 @@ function Shell({
     ...(can("sahakari_view") ? [["sahakari", "Sahakari", Landmark] as const] : []),
     ...(profile.isOwner ? [["users", "Users", UsersRound] as const, ["notifications", "Send notifications", Send] as const] : []),
   ] as const;
+
+  if (active === "inbox") return <div className="notification-screen">{children}</div>;
 
   return (
     <div className="reference-app">
@@ -344,7 +345,7 @@ function Shell({
             <img src={ledgerMark} alt="" /><span>RKH Ledger</span>
           </button>
           <div className="profile-toolbar-actions">
-          <button type="button" className="notification-bell" aria-label="Open notifications" title="Notifications" onClick={() => { setMenuOpen(false); setNotificationsOpen(true); }}><Bell size={20} /></button>
+          <button type="button" className="notification-bell" aria-label="Open notifications" title="Notifications" onClick={() => { setMenuOpen(false); go("inbox"); }}><Bell size={20} /></button>
           <button type="button" className={`profile-trigger${!mobilePrimaryPaths.includes(active) ? " profile-section-active" : ""}`} aria-label="Open profile and more sections" aria-expanded={menuOpen} aria-controls="profile-menu" onClick={() => setMenuOpen((open) => !open)}>
             <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
           </button>
@@ -360,14 +361,13 @@ function Shell({
               ))}
             </nav>
             <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
-            <button type="button" onClick={() => { setMenuOpen(false); setNotificationsOpen(true); }}>Notifications</button>
+            <button type="button" onClick={() => { setMenuOpen(false); go("inbox"); }}>Notifications</button>
             <button type="button" className="mobile-lock-menu-action" onClick={() => { setMenuOpen(false); window.dispatchEvent(new Event("rkh-lock")); }}>Lock app</button>
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
         </div>
         <div className="page-transition" key={contentKey}>{children}</div>
       </main>
-      {notificationsOpen && <NotificationSettings userId={profile.userId} onClose={() => setNotificationsOpen(false)} />}
       {editing && <EditProfile profile={profile} avatarUrl={avatarUrl} onClose={() => setEditing(false)} onSave={onSaveProfile} />}
     </div>
   );
@@ -3204,6 +3204,8 @@ export default function App() {
     page = <SahakariPage />;
   } else if (current.path === "users" && profile.isOwner) {
     page = <UserManagement currentUserId={profile.userId} />;
+  } else if (current.path === "inbox") {
+    page = <NotificationInbox userId={profile.userId} onBack={() => { if (window.history.state?.fromApp) window.history.back(); else go("dashboard"); }} />;
   } else if (current.path === "notifications" && profile.isOwner) {
     page = <NotificationAdminPage />;
   }

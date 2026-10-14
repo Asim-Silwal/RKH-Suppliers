@@ -19,6 +19,7 @@ const assert = require('node:assert/strict');
    else if(path==='/rest/v1/app_roles') body=route.request().headers().accept?.includes('object')?roles[0]:roles;
    else if(path==='/rest/v1/rpc/is_app_owner') body=true;
    else if(path==='/rest/v1/rpc/list_app_users') body=[{user_id:user.id,email:user.email,full_name:'Test owner',role_key:'admin',created_at:'2026-09-01'}];
+   else if(path==='/rest/v1/notification_inbox') {const activity=new URL(route.request().url()).searchParams.get('category')==='eq.activity';body=route.request().method()==='PATCH'?{}:[{event_id:activity?'00000000-0000-4000-8000-000000000003':'00000000-0000-4000-8000-000000000002',category:activity?'activity':'admin',title:activity?'Party Added':'Team reminder',body:activity?'New party "Test party" added by Test owner.':'Admin announcement',created_at:'2026-10-14T10:00:00Z',read_at:null}];}
    else if(path==='/rest/v1/parties'||path==='/rest/v1/transactions') body=[];
    else if(path==='/functions/v1/notifications') {
     const input=route.request().postDataJSON();actions.push(input);
@@ -39,7 +40,7 @@ const assert = require('node:assert/strict');
   },session);
   await page.goto('http://localhost:5173/__mockup/');
   await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();
-  const openSettings=async()=>{await page.getByRole('button',{name:'Open notifications',exact:true}).click();};
+  const openSettings=async()=>{await page.getByRole('button',{name:'Open notifications',exact:true}).click();await page.getByRole('heading',{name:'Notifications',exact:true}).waitFor();await page.getByText('Admin announcement',{exact:true}).waitFor();await page.getByRole('tab',{name:'Activity',exact:true}).click();await page.getByText('New party "Test party" added by Test owner.',{exact:true}).waitFor();await page.getByRole('button',{name:'Mark all read',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.inbox-item.unread').length===0);await page.getByRole('button',{name:'Notification settings',exact:true}).click();};
   await openSettings();await page.getByRole('button',{name:'Enable notifications',exact:true}).click();
   await page.getByText('Enabled on this device',{exact:true}).waitFor();
   assert.equal(actions.filter(a=>a.action==='subscribe').length,1);
@@ -47,6 +48,13 @@ const assert = require('node:assert/strict');
   assert.equal(actions.filter(a=>a.action==='unsubscribe').length,1);
   await page.getByRole('button',{name:'Enable notifications',exact:true}).click();await page.getByText('Enabled on this device',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Close notifications'}).click();
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator('.reference-sidebar').count(),0,'Inbox covers bottom navigation');
+  const inboxBox=await page.locator('.notification-screen').boundingBox();assert.equal(inboxBox.width,390);
+  await page.screenshot({path:require('node:path').join(require('node:os').tmpdir(),'rkh-inbox-mobile.png'),fullPage:true});
+  await page.getByRole('button',{name:'Go back',exact:true}).click();
+  await page.getByRole('heading',{name:'Dashboard',exact:true}).waitFor();
+  await page.setViewportSize({width:1280,height:900});
   await page.getByRole('button',{name:'Send notifications',exact:true}).first().click();
   await page.getByRole('heading',{name:'Send notifications',exact:true}).waitFor();
   assert.match(page.url(),/\/notifications$/);
@@ -65,6 +73,6 @@ const assert = require('node:assert/strict');
   await page.getByRole('button',{name:'Open profile and more sections'}).click();await page.getByRole('button',{name:'Sign out',exact:true}).click();
   await page.waitForFunction(()=>window.testUnsubscribes===2);
   assert.deepEqual(errors,[]);
-  console.log('PASS: enable, disable, owner sender, duplicate submit, retry identity, mobile layout, sign-out unsubscribe.');
+  console.log('PASS: full-screen inbox, Admin/Activity tabs, read state, mobile back, enable/disable, owner sender, duplicate submit, retry identity, sign-out unsubscribe.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
