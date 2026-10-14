@@ -1,3 +1,4 @@
+import { NotificationSettings } from "./components/Notifications";
 import {
   type FormEvent,
   type ReactNode,
@@ -250,6 +251,7 @@ function Shell({
   snapshot: { outstanding: number; payable: number; partyCount: number; todayBs: string };
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -353,12 +355,14 @@ function Shell({
               ))}
             </nav>
             <button type="button" onClick={() => { setMenuOpen(false); setEditing(true); }}>Edit profile</button>
+            <button type="button" onClick={() => { setMenuOpen(false); setNotificationsOpen(true); }}>Notifications</button>
             <button type="button" className="mobile-lock-menu-action" onClick={() => { setMenuOpen(false); window.dispatchEvent(new Event("rkh-lock")); }}>Lock app</button>
             <button type="button" onClick={() => { setMenuOpen(false); onLogout(); }}><LogOut size={15} /> Sign out</button>
           </div>}
         </div>
         <div className="page-transition" key={contentKey}>{children}</div>
       </main>
+      {notificationsOpen && <NotificationSettings userId={profile.userId} onClose={() => setNotificationsOpen(false)} />}
       {editing && <EditProfile profile={profile} avatarUrl={avatarUrl} onClose={() => setEditing(false)} onSave={onSaveProfile} />}
     </div>
   );

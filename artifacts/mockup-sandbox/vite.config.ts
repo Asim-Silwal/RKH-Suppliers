@@ -14,7 +14,7 @@ if (Number.isNaN(port) || port <= 0) {
 const basePath = process.env.BASE_PATH ?? (process.env.VERCEL ? "/" : "/__mockup");
 
 export default defineConfig({
-  base: basePath,
+  base: basePath.endsWith("/") ? basePath : `${basePath}/`,
   plugins: [
     react(),
     runtimeErrorOverlay(),
