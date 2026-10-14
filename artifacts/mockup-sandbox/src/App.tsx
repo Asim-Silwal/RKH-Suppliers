@@ -1,4 +1,4 @@
-import { NotificationSettings } from "./components/Notifications";
+import { NotificationAdminPage, NotificationSettings } from "./components/Notifications";
 import {
   type FormEvent,
   type ReactNode,
@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   AlertCircle,
   BarChart3,
+  Bell,
+  Send,
   CheckCircle2,
   CalendarDays,
   Check,
@@ -284,7 +286,7 @@ function Shell({
     ...(can("transactions_write") ? [["add-entry", "Add transaction", Plus] as const] : []),
     ...(can("reports_view") ? [["reports", "Reports", BarChart3] as const] : []),
     ...(can("sahakari_view") ? [["sahakari", "Sahakari", Landmark] as const] : []),
-    ...(profile.isOwner ? [["users", "Users", UsersRound] as const] : []),
+    ...(profile.isOwner ? [["users", "Users", UsersRound] as const, ["notifications", "Send notifications", Send] as const] : []),
   ] as const;
 
   return (
@@ -341,9 +343,12 @@ function Shell({
           <button type="button" className="mobile-brand" onClick={() => go("dashboard")} aria-label="RKH Ledger dashboard">
             <img src={ledgerMark} alt="" /><span>RKH Ledger</span>
           </button>
+          <div className="profile-toolbar-actions">
+          <button type="button" className="notification-bell" aria-label="Open notifications" title="Notifications" onClick={() => { setMenuOpen(false); setNotificationsOpen(true); }}><Bell size={20} /></button>
           <button type="button" className={`profile-trigger${!mobilePrimaryPaths.includes(active) ? " profile-section-active" : ""}`} aria-label="Open profile and more sections" aria-expanded={menuOpen} aria-controls="profile-menu" onClick={() => setMenuOpen((open) => !open)}>
             <ProfileAvatar profile={profile} avatarUrl={avatarUrl} />
           </button>
+          </div>
           {menuOpen && <div className="profile-menu" id="profile-menu">
             <div className="profile-menu-person"><ProfileAvatar profile={profile} avatarUrl={avatarUrl} /><div><strong>{profile.fullName || "Your profile"}</strong><small>{profile.email}</small></div></div>
             <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{profile.roleName}</dd></div></dl>
@@ -2464,7 +2469,7 @@ export default function App() {
     (current.path === "add-entry" && !has("transactions_write")) ||
     (current.path === "reports" && !has("reports_view")) ||
     (current.path === "sahakari" && !has("sahakari_view")) ||
-    (current.path === "users" && !profile?.isOwner)
+    (["users", "notifications"].includes(current.path) && !profile?.isOwner)
   ));
 
   const [parties, setParties] =
@@ -3199,6 +3204,8 @@ export default function App() {
     page = <SahakariPage />;
   } else if (current.path === "users" && profile.isOwner) {
     page = <UserManagement currentUserId={profile.userId} />;
+  } else if (current.path === "notifications" && profile.isOwner) {
+    page = <NotificationAdminPage />;
   }
 
   const lifetimeBalances = balancesByParty(entries);

@@ -1,4 +1,3 @@
-import { NotificationSender } from "./Notifications";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, KeyRound, Plus, Shield, Trash2, UsersRound, X } from "lucide-react";
@@ -54,7 +53,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [inviteRole, setInviteRole] = useState("staff");
-  const [activeTab, setActiveTab] = useState<"users" | "roles" | "notifications">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "roles">("users");
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [newRoleOpen, setNewRoleOpen] = useState(false);
   const [roleName, setRoleName] = useState("");
@@ -228,10 +227,10 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
     </div>
     <section className="admin-workspace">
       <div className="admin-workspace-top">
-        <div className="admin-tabs" role="tablist" aria-label="Access control sections"><button type="button" role="tab" aria-selected={activeTab === "users"} className={activeTab === "users" ? "active" : ""} onClick={() => setActiveTab("users")}>Users <span>{users.length}</span></button><button type="button" role="tab" aria-selected={activeTab === "roles"} className={activeTab === "roles" ? "active" : ""} onClick={() => setActiveTab("roles")}>Roles <span>{roles.length}</span></button><button type="button" role="tab" aria-selected={activeTab === "notifications"} className={activeTab === "notifications" ? "active" : ""} onClick={() => setActiveTab("notifications")}>Notifications</button></div>
+        <div className="admin-tabs" role="tablist" aria-label="Access control sections"><button type="button" role="tab" aria-selected={activeTab === "users"} className={activeTab === "users" ? "active" : ""} onClick={() => setActiveTab("users")}>Users <span>{users.length}</span></button><button type="button" role="tab" aria-selected={activeTab === "roles"} className={activeTab === "roles" ? "active" : ""} onClick={() => setActiveTab("roles")}>Roles <span>{roles.length}</span></button></div>
         {activeTab === "users" ? <button type="button" className="admin-primary-button" disabled={assignableRoles.length === 0} title={assignableRoles.length === 0 ? "Create a role before adding users" : undefined} onClick={() => setAddUserOpen(true)}><Plus size={16} /> Add user</button> : activeTab === "roles" ? <button type="button" className="admin-primary-button" onClick={() => setNewRoleOpen(true)}><Plus size={16} /> New role</button> : null}
       </div>
-      {loading ? <div className="admin-empty">Loading access controls...</div> : activeTab === "notifications" ? <NotificationSender users={users} /> : activeTab === "users" ? <>
+      {loading ? <div className="admin-empty">Loading access controls...</div> : activeTab === "users" ? <>
         <div className="admin-section-intro"><div><h2>Team directory</h2><p>Change roles, set a new password, or remove access.</p></div><span>{users.length} accounts</span></div>
         <div className="admin-table-scroll"><table className="admin-users-table"><thead><tr><th>User</th><th>Role</th><th>Added (BS)</th><th>Actions</th></tr></thead><tbody>{users.map((user) => <tr key={user.user_id}>
           <td><div className="admin-user-cell"><span className="admin-user-avatar">{(user.full_name?.trim() || user.email)[0]?.toUpperCase()}</span><span><strong>{user.full_name?.trim() || user.email}</strong><small>{user.email}</small></span></div></td>

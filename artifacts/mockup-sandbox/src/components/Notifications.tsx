@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { Bell, Send, X } from "lucide-react";
 import { applicationKey, bindPushUser, boundPushUser, clearPushUser, needsHomeScreen, notificationApi, pushRegistration, pushSupported } from "../lib/notifications";
 import "./Notifications.css";
+import { supabase } from "../lib/supabase";
+import "./UserManagement.css";
 
 export function NotificationSettings({ userId, onClose }: { userId: string; onClose: () => void }) {
   const [ready, setReady] = useState(false);
@@ -63,6 +65,32 @@ export function NotificationSettings({ userId, onClose }: { userId: string; onCl
 }
 
 type Recipient = { user_id: string; email: string; full_name: string | null };
+export function NotificationAdminPage() {
+  const [users, setUsers] = useState<Recipient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError("");
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc("list_app_users");
+        if (error) throw error;
+        if (!cancelled) setUsers(data ?? []);
+      } catch {
+        if (!cancelled) setError("Could not load recipients. Check your connection and try again.");
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [attempt]);
+  return <div className="admin-console">
+    <header className="admin-console-header"><div><span className="eyebrow">OWNER ACCESS / TEAM UPDATES</span><h1>Send notifications</h1><p>Compose updates and review recent sends in one place.</p></div><span className="admin-owner-badge"><Bell size={15} /> Owner only</span></header>
+    <section className="admin-workspace">
+      {loading ? <div className="admin-empty">Loading recipients…</div> : error ? <div className="admin-empty"><p role="alert">{error}</p><button className="admin-primary-button" onClick={() => setAttempt(a => a + 1)}>Try again</button></div> : <NotificationSender users={users} />}
+    </section>
+  </div>;
+}
 type SendRecord = { id: string; title: string; status: string; accepted: number; failed: number; expired: number; created_at: string };
 export function NotificationSender({ users }: { users: Recipient[] }) {
   const [title, setTitle] = useState(""); const [body, setBody] = useState("");
