@@ -45,11 +45,16 @@ Deno.serve(async (req) => {
       if (error) throw error;
       return reply({ ok: true });
     }
-    const { data: owner, error: ownerError } = await admin.from("app_owner").select("user_id").eq("user_id", user.id).maybeSingle();
-    if (ownerError) throw ownerError;
-    if (!owner) return reply({ error: "Only the owner can send notifications." }, 403);
+    const { data: profile, error: profileError } = await admin.from("profiles").select("active_business_id").eq("id", user.id).single();
+    if (profileError || !profile?.active_business_id) return reply({ error: "Select a business workspace first." }, 403);
+    const businessId = profile.active_business_id;
+    const { data: membership, error: membershipError } = await admin.from("business_memberships").select("role_key, status").eq("business_id", businessId).eq("user_id", user.id).single();
+    if (membershipError || membership?.status !== "active" || !membership || !["business_owner", "admin"].includes(membership.role_key)) return reply({ error: "Business administrator access required." }, 403);
+    const { data: businessMembers, error: membersError } = await admin.from("business_memberships").select("user_id").eq("business_id", businessId).eq("status", "active");
+    if (membersError) throw membersError;
+    const memberIds = (businessMembers ?? []).map((member) => member.user_id);
     if (input.action === "history") {
-      const { data, error } = await admin.from("notification_sends").select("id,title,body,status,accepted,failed,expired,created_at").order("created_at", { ascending: false }).limit(20);
+      const { data, error } = await admin.from("notification_sends").select("id,title,body,status,accepted,failed,expired,created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(20);
       if (error) throw error;
       return reply({ history: data });
     }
@@ -58,19 +63,19 @@ Deno.serve(async (req) => {
     const title = typeof input.title === "string" ? input.title.trim() : "";
     const body = typeof input.body === "string" ? input.body.trim() : "";
     if (!title || title.length > 80 || !body || body.length > 500 || !validId(input.id) || (input.recipient !== "all" && !validId(input.recipient))) return reply({ error: "Enter a title, message, and valid recipient." }, 400);
-    const { data: previous, error: previousError } = await admin.from("notification_sends").select("*").eq("id", input.id).maybeSingle();
+    if (input.recipient !== "all" && !memberIds.includes(input.recipient)) return reply({ error: "Recipient must belong to this business." }, 400);
+    const { data: previous, error: previousError } = await admin.from("notification_sends").select("*").eq("id", input.id).eq("business_id", businessId).maybeSingle();
     if (previousError) throw previousError;
     if (previous) return reply(previous);
-    const { count, error: limitError } = await admin.from("notification_sends").select("id", { count: "exact", head: true }).gte("created_at", new Date(Date.now() - 60000).toISOString());
+    const { count, error: limitError } = await admin.from("notification_sends").select("id", { count: "exact", head: true }).eq("business_id", businessId).gte("created_at", new Date(Date.now() - 60000).toISOString());
     if (limitError) throw limitError;
     if ((count ?? 0) >= 5) return reply({ error: "Please wait a minute before sending more notifications." }, 429);
-    let query = admin.from("push_subscriptions").select("endpoint,p256dh,auth");
-    if (input.recipient !== "all") query = query.eq("user_id", input.recipient);
+    let query = admin.from("push_subscriptions").select("endpoint,p256dh,auth,user_id").in("user_id", input.recipient === "all" ? memberIds : [input.recipient]);
     const { data: subscriptions, error: subError } = await query.limit(201);
     if (subError) throw subError;
     const devices = subscriptions ?? [];
     if (subscriptions && subscriptions.length > 200) return reply({ error: "Too many devices for one send. Select an individual user." }, 400);
-    const { error: insertError } = await admin.from("notification_sends").insert({ id: input.id, sender_id: user.id, recipient_id: input.recipient === "all" ? null : input.recipient, title, body });
+    const { error: insertError } = await admin.from("notification_sends").insert({ id: input.id, sender_id: user.id, business_id: businessId, recipient_id: input.recipient === "all" ? null : input.recipient, title, body });
     if (insertError?.code === "23505") return reply({ error: "This notification is already being sent. Check recent sends." }, 409);
     if (insertError) throw insertError;
     let accepted = 0, failed = 0, expired = 0;

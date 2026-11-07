@@ -26,9 +26,11 @@ Deno.serve(async (request) => {
   });
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) return reply(401, { error: "Invalid session." });
-  const { data: owner, error: ownerError } = await admin
-    .from("app_owner").select("user_id").eq("user_id", userData.user.id).maybeSingle();
-  if (ownerError || !owner) return reply(403, { error: "Owner access required." });
+  const { data: caller } = await admin.from("profiles").select("active_business_id").eq("id", userData.user.id).maybeSingle();
+  if (!caller?.active_business_id) return reply(403, { error: "Select a business workspace first." });
+  const { data: membership } = await admin.from("business_memberships").select("role_key, status")
+    .eq("business_id", caller.active_business_id).eq("user_id", userData.user.id).eq("status", "active").maybeSingle();
+  if (!membership || membership.status !== "active" || !["business_owner", "admin"].includes(membership.role_key)) return reply(403, { error: "Business administrator access required." });
 
   let input: unknown;
   try { input = await request.json(); } catch { return reply(400, { error: "Invalid request." }); }
@@ -43,6 +45,13 @@ Deno.serve(async (request) => {
   const { data: target, error: targetError } = await admin.from("profiles")
     .select("id").eq("id", userId).maybeSingle();
   if (targetError || !target) return reply(404, { error: "User not found." });
+  const { data: targetMembership } = await admin.from("business_memberships").select("user_id")
+    .eq("business_id", caller.active_business_id).eq("user_id", userId).eq("status", "active").maybeSingle();
+  if (!targetMembership) return reply(404, { error: "Business member not found." });
+  const { data: targetMemberships, error: targetMembershipsError } = await admin.from("business_memberships")
+    .select("business_id").eq("user_id", userId).eq("status", "active");
+  if (targetMembershipsError) return reply(500, { error: "Could not verify the user's business access." });
+  if ((targetMemberships?.length ?? 0) > 1) return reply(409, { error: "This account belongs to multiple businesses. Ask the user to change their password through the account recovery flow." });
   const { error: updateError } = await admin.auth.admin.updateUserById(userId, { password });
   if (updateError) return reply(400, { error: updateError.message });
   return reply(200, { updated: true });

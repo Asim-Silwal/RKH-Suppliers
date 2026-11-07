@@ -55,6 +55,9 @@ type UserProfile = {
   fullName: string;
   contact: string;
   avatarPath: string | null;
+  businessId: string;
+  businessName: string;
+  businesses: { id: string; name: string }[];
 };
 type DashboardPeriod = "week" | "month" | "year" | "custom" | "lifetime";
 
@@ -236,6 +239,7 @@ function Shell({
   children,
   contentKey,
   onLogout,
+  onSelectBusiness,
   role,
   profile,
   avatarUrl,
@@ -246,6 +250,7 @@ function Shell({
   children: ReactNode;
   contentKey: string;
   onLogout: () => void;
+  onSelectBusiness: (businessId: string) => Promise<void>;
   role: UserRole;
   profile: UserProfile;
   avatarUrl: string | null;
@@ -285,7 +290,7 @@ function Shell({
     ...(can("transactions_write") ? [["add-entry", "Add transaction", Plus] as const] : []),
     ...(can("reports_view") ? [["reports", "Reports", BarChart3] as const] : []),
     ...(can("sahakari_view") ? [["sahakari", "Sahakari", Landmark] as const] : []),
-    ...(profile.isOwner ? [["users", "Users", UsersRound] as const, ["notifications", "Send notifications", Send] as const] : []),
+    ...(["business_owner", "admin"].includes(profile.role) ? [["users", "Users", UsersRound] as const, ["notifications", "Send notifications", Send] as const] : []),
   ] as const;
 
   if (active === "inbox") return <div className="notification-screen">{children}</div>;
@@ -353,6 +358,8 @@ function Shell({
           {menuOpen && <div className="profile-menu" id="profile-menu">
             <div className="profile-menu-person"><ProfileAvatar profile={profile} avatarUrl={avatarUrl} /><div><strong>{profile.fullName || "Your profile"}</strong><small>{profile.email}</small></div></div>
             <dl><div><dt>Contact</dt><dd>{profile.contact || "Not provided"}</dd></div><div><dt>Role</dt><dd>{profile.roleName}</dd></div></dl>
+            <label className="profile-business-picker">Business workspace<select value={profile.businessId} onChange={(event) => { setMenuOpen(false); void onSelectBusiness(event.target.value); }}>{profile.businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}</select></label>
+            <button type="button" onClick={async () => { const name = window.prompt("Name your new business workspace"); if (name?.trim()) { setMenuOpen(false); await onSelectBusiness(`create:${name.trim()}`); } }}>Create business</button>
             <nav className="profile-mobile-sections" aria-label="More sections">
               {links.filter(([href]) => !mobilePrimaryPaths.includes(href)).map(([href, label, Icon]) => (
                 <button type="button" key={href} aria-current={active === href ? "page" : undefined} onClick={() => { setMenuOpen(false); go(href); }}>
@@ -2459,6 +2466,8 @@ export default function App() {
   ] = useState<boolean | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileRefresh, setProfileRefresh] = useState(0);
+  const dataRequestId = useRef(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [roleError, setRoleError] = useState("");
   const role = profile?.userId === authUserId ? profile.role : null;
@@ -2469,7 +2478,7 @@ export default function App() {
     (current.path === "add-entry" && !has("transactions_write")) ||
     (current.path === "reports" && !has("reports_view")) ||
     (current.path === "sahakari" && !has("sahakari_view")) ||
-    (["users", "notifications"].includes(current.path) && !profile?.isOwner)
+    (["users", "notifications"].includes(current.path) && !["business_owner", "admin"].includes(profile?.role ?? ""))
   ));
 
   const [parties, setParties] =
@@ -2565,7 +2574,7 @@ export default function App() {
     const loadRole = async () => {
       const [userResult, profileResult, ownerResult] = await Promise.all([
         supabase.auth.getUser(),
-        supabase.from("profiles").select("role, full_name, contact, avatar_path").eq("id", authUserId).single(),
+        supabase.from("profiles").select("active_business_id, full_name, contact, avatar_path").eq("id", authUserId).single(),
         supabase.rpc("is_app_owner"),
       ]);
       if (cancelled) return;
@@ -2575,11 +2584,18 @@ export default function App() {
         setRoleError(userResult.error?.message ?? "Could not verify your account.");
         return;
       }
-      if (profileResult.error || !data?.role) {
-        setRoleError(profileResult.error?.message ?? "Your account has no valid access role.");
+      if (profileResult.error || !data?.active_business_id) {
+        setRoleError(profileResult.error?.message ?? "Your account has no active business workspace.");
         return;
       }
-      const roleResult = await supabase.from("app_roles").select("name, permissions").eq("role_key", data.role).single();
+      const [membershipResult, businessesResult] = await Promise.all([
+        supabase.from("business_memberships").select("role_key").eq("business_id", data.active_business_id).eq("user_id", authUserId).single(),
+        supabase.from("business_memberships").select("business_id, businesses(name)").eq("user_id", authUserId),
+      ]);
+      if (membershipResult.error || businessesResult.error) { setRoleError(membershipResult.error?.message ?? businessesResult.error?.message ?? "Could not load business membership."); return; }
+      const businesses = (businessesResult.data ?? []).map((membership: any) => ({ id: membership.business_id, name: membership.businesses?.name ?? "Business" }));
+      const businessName = businesses.find((business) => business.id === data.active_business_id)?.name ?? "Business";
+      const roleResult = await supabase.from("business_roles").select("name, permissions").eq("business_id", data.active_business_id).eq("role_key", membershipResult.data.role_key).single();
       if (cancelled) return;
       if (roleResult.error || ownerResult.error || !roleResult.data) {
         setRoleError(roleResult.error?.message ?? ownerResult.error?.message ?? "Could not load access permissions.");
@@ -2588,7 +2604,7 @@ export default function App() {
 
       setProfile({
         userId: user.id,
-        role: data.role as UserRole,
+        role: membershipResult.data.role_key as UserRole,
         roleName: roleResult.data.name,
         permissions: roleResult.data.permissions as Permission[],
         isOwner: ownerResult.data === true,
@@ -2596,12 +2612,24 @@ export default function App() {
         fullName: data.full_name ?? "",
         contact: data.contact ?? "",
         avatarPath: data.avatar_path ?? null,
+        businessId: data.active_business_id,
+        businessName,
+        businesses,
       });
     };
 
     void loadRole();
     return () => { cancelled = true; };
-  }, [authUserId]);
+  }, [authUserId, profileRefresh]);
+
+  const selectBusiness = async (businessId: string) => {
+    const result = businessId.startsWith("create:")
+      ? await supabase.rpc("create_business", { business_name: businessId.slice(7) })
+      : await supabase.rpc("select_business", { target_business: businessId });
+    if (result.error) { showNotice("Business switch failed", result.error.message, "error"); return; }
+    dataRequestId.current += 1;
+    setParties([]); setEntries([]); setProfile(null); setProfileRefresh((value) => value + 1);
+  };
 
   useEffect(() => {
     if (!profile?.avatarPath || profile.userId !== authUserId) {
@@ -2627,6 +2655,7 @@ export default function App() {
   /* LOAD DATABASE */
 
   const loadData = async () => {
+    const requestId = ++dataRequestId.current;
     setLoadingData(true);
     setDataError("");
     if (!profile?.permissions.includes("ledger_view")) {
@@ -2655,6 +2684,8 @@ export default function App() {
           ascending: false,
         }),
     ]);
+
+    if (requestId !== dataRequestId.current) return;
 
     if (
       partyResult.error ||
@@ -2729,7 +2760,7 @@ export default function App() {
       setParties([]);
       setEntries([]);
     }
-  }, [authenticated, profile?.userId, profile?.role]);
+  }, [authenticated, profile?.userId, profile?.role, profile?.businessId]);
 
   /* ADD PARTY */
 
@@ -3202,11 +3233,11 @@ export default function App() {
     page = <Reports parties={parties} entries={entries} />;
   } else if (current.path === "sahakari") {
     page = <SahakariPage />;
-  } else if (current.path === "users" && profile.isOwner) {
-    page = <UserManagement currentUserId={profile.userId} />;
+  } else if (current.path === "users" && ["business_owner", "admin"].includes(profile.role)) {
+    page = <UserManagement currentUserId={profile.userId} businessId={profile.businessId} />;
   } else if (current.path === "inbox") {
     page = <NotificationInbox userId={profile.userId} onBack={() => { if (window.history.state?.fromApp) window.history.back(); else go("dashboard"); }} />;
-  } else if (current.path === "notifications" && profile.isOwner) {
+  } else if (current.path === "notifications" && ["business_owner", "admin"].includes(profile.role)) {
     page = <NotificationAdminPage />;
   }
 
@@ -3218,13 +3249,13 @@ export default function App() {
     todayBs: todayDates().bs,
   };
 
-  const shell = <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={snapshot}>
+  const shell = <Shell active={restrictedRoute ? "dashboard" : current.path} contentKey={`${profile.businessId}:${current.path}:${current.id ?? ""}:${window.location.search}`} onLogout={logout} onSelectBusiness={selectBusiness} role={role} profile={profile} avatarUrl={avatarUrl} onSaveProfile={saveProfile} snapshot={snapshot}>
     {page}
   </Shell>;
 
   return (
     <>
-    {has("sahakari_view") ? <SahakariProvider key={profile.userId} userId={profile.userId} canRecord={has("sahakari_record")} allowEdit={profile.permissions.includes("sahakari_edit")} isOwner={profile.isOwner} selectedId={current.path === "sahakari" ? current.id : undefined}>
+    {has("sahakari_view") ? <SahakariProvider key={`${profile.userId}:${profile.businessId}`} userId={profile.userId} canRecord={has("sahakari_record")} allowEdit={profile.permissions.includes("sahakari_edit")} isOwner={profile.isOwner} selectedId={current.path === "sahakari" ? current.id : undefined}>
       {shell}
     </SahakariProvider> : shell}
     <ActionNotice notice={notice} dismiss={() => setNotice(null)} />

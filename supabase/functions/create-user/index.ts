@@ -28,9 +28,13 @@ Deno.serve(async (request) => {
   const { data: userData, error: userError } = await admin.auth.getUser(token);
   if (userError || !userData.user) return reply(401, { error: "Invalid session." });
 
-  const { data: owner, error: ownerError } = await admin
-    .from("app_owner").select("user_id").eq("user_id", userData.user.id).maybeSingle();
-  if (ownerError || !owner) return reply(403, { error: "Owner access required." });
+  const { data: caller, error: callerError } = await admin
+    .from("profiles").select("active_business_id").eq("id", userData.user.id).maybeSingle();
+  if (callerError || !caller?.active_business_id) return reply(403, { error: "Select a business workspace first." });
+  const { data: membership, error: membershipError } = await admin.from("business_memberships")
+    .select("role_key, status")
+    .eq("business_id", caller.active_business_id).eq("user_id", userData.user.id).eq("status", "active").maybeSingle();
+  if (membershipError || !membership || membership.status !== "active" || !["business_owner", "admin"].includes(membership.role_key)) return reply(403, { error: "Business administrator access required." });
 
   let input: unknown;
   try { input = await request.json(); } catch { return reply(400, { error: "Invalid request." }); }
@@ -40,12 +44,12 @@ Deno.serve(async (request) => {
   const fullName = typeof fields.fullName === "string" ? fields.fullName.trim() : "";
   const password = typeof fields.password === "string" ? fields.password : "";
   const role = typeof fields.role === "string" ? fields.role : "";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || fullName.length > 120 || !role || role === "admin" || password.length < 12 || password.length > 128) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || fullName.length > 120 || !role || role === "business_owner" || (role === "admin" && membership?.role_key !== "business_owner") || password.length < 12 || password.length > 128) {
     return reply(400, { error: "Enter a valid email, name, role, and a password of 12 to 128 characters." });
   }
-  const { data: roleData, error: roleError } = await admin.from("app_roles")
-    .select("role_key").eq("role_key", role).maybeSingle();
-  if (roleError || !roleData) return reply(400, { error: "Choose an existing non-admin role." });
+  const { data: roleData, error: roleError } = await admin.from("business_roles")
+    .select("role_key, permissions").eq("business_id", caller.active_business_id).eq("role_key", role).maybeSingle();
+  if (roleError || !roleData || (!roleData.permissions.includes("ledger_view") && !roleData.permissions.includes("staff_balances_view"))) return reply(400, { error: "Choose an existing role with business access." });
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
@@ -57,12 +61,18 @@ Deno.serve(async (request) => {
 
   const { error: profileError } = await admin.from("profiles").upsert({
     id: created.user.id,
-    role,
     full_name: fullName,
+    active_business_id: caller.active_business_id,
   }, { onConflict: "id" });
-  if (profileError) {
+  const { error: newMembershipError } = profileError ? { error: profileError } : await admin.from("business_memberships").insert({
+    business_id: caller.active_business_id,
+    user_id: created.user.id,
+    role_key: role,
+    status: "active",
+  });
+  if (profileError || newMembershipError) {
     await admin.auth.admin.deleteUser(created.user.id);
-    console.error("Could not assign new user role", profileError);
+    console.error("Could not assign new business membership", profileError ?? newMembershipError);
     return reply(500, { error: "Could not assign the user's role; the new account was removed. Please try again." });
   }
   return reply(200, { id: created.user.id });

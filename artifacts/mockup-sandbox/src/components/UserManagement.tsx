@@ -43,7 +43,7 @@ const descriptions: Record<Permission, string> = {
 };
 const permissionOrder: Permission[] = ["ledger_view", "parties_write", "parties_delete", "transactions_write", "transactions_delete", "reports_view", "sahakari_view", "sahakari_record", "sahakari_edit", "staff_balances_view"];
 
-export function UserManagement({ currentUserId }: { currentUserId: string }) {
+export function UserManagement({ currentUserId, businessId }: { currentUserId: string; businessId: string }) {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,7 +73,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
     setError("");
     const [userResult, roleResult] = await Promise.all([
       supabase.rpc("list_app_users"),
-      supabase.from("app_roles").select("role_key, name, permissions, is_system").order("name"),
+      supabase.from("business_roles").select("role_key, name, permissions, is_system").eq("business_id", businessId).order("name"),
     ]);
     if (userResult.error || roleResult.error) {
       setError(userResult.error?.message ?? roleResult.error?.message ?? "Could not load users and roles.");
@@ -81,10 +81,10 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
       setUsers((userResult.data ?? []) as AppUser[]);
       const nextRoles = (roleResult.data ?? []) as AppRole[];
       setRoles(nextRoles);
-      setInviteRole((current) => nextRoles.some((role) => role.role_key === current && current !== "admin") ? current : nextRoles.find((role) => role.role_key !== "admin")?.role_key ?? "");
+      setInviteRole((current) => nextRoles.some((role) => role.role_key === current && !["admin", "business_owner"].includes(current)) ? current : nextRoles.find((role) => !["admin", "business_owner"].includes(role.role_key))?.role_key ?? "");
     }
     setLoading(false);
-  }, []);
+  }, [businessId]);
   useEffect(() => { void refresh(); }, [refresh]);
 
   const createUser = async (event: FormEvent) => {
@@ -142,12 +142,12 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   };
 
   const deleteUser = async (user: AppUser) => {
-    if (!window.confirm(`Permanently delete ${user.full_name || user.email}? They will lose access, while recorded Sahakari history remains.`)) return;
+    if (!window.confirm(`Remove ${user.full_name || user.email} from this business? Their recorded Sahakari history remains.`)) return;
     setBusy(true); setError(""); setMessage("");
     const { data, error: functionError } = await invokeAccountFunction("delete-user", { body: { userId: user.user_id } });
     if (functionError || data?.error) setError(data?.error ?? functionError?.message ?? "Could not delete user.");
     else {
-      setMessage(`${user.full_name || user.email} was deleted.`);
+      setMessage(`${user.full_name || user.email} was removed from this business. Their sign-in account remains intact.`);
       if (resetUser?.user_id === user.user_id) setResetUser(null);
       await refresh();
     }
@@ -171,7 +171,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   const createRole = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true); setError(""); setMessage("");
-    const { error: createError } = await supabase.rpc("create_app_role", { role_name: roleName.trim(), role_permissions: newPermissions });
+    const { error: createError } = await supabase.rpc("create_business_role", { role_name: roleName.trim(), role_permissions: newPermissions });
     if (createError) setError(createError.message);
     else {
       setMessage(`Role ${roleName.trim()} created.`);
@@ -184,7 +184,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
 
   const saveRole = async (role: AppRole) => {
     setBusy(true); setError(""); setMessage("");
-    const { error: updateError } = await supabase.rpc("update_app_role_details", { target_role: role.role_key, role_name: editingName.trim(), role_permissions: editingPermissions });
+    const { error: updateError } = await supabase.rpc("update_business_role_details", { target_role: role.role_key, role_name: editingName.trim(), role_permissions: editingPermissions });
     if (updateError) setError(updateError.message);
     else {
       setMessage(`${editingName.trim()} role updated.`);
@@ -199,7 +199,7 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
     if (assignedCount) { setError(`Move ${assignedCount} user${assignedCount === 1 ? "" : "s"} to another role before deleting ${role.name}.`); return; }
     if (!window.confirm(`Delete the ${role.name} role? Move its users to another role first.`)) return;
     setBusy(true); setError(""); setMessage("");
-    const { error: deleteError } = await supabase.rpc("delete_app_role", { target_role: role.role_key });
+    const { error: deleteError } = await supabase.rpc("delete_business_role", { target_role: role.role_key });
     if (deleteError) setError(deleteError.message);
     else {
       setMessage(`${role.name} role deleted.`);
@@ -210,13 +210,13 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
   };
 
   const panelOpen = addUserOpen || newRoleOpen || Boolean(resetUser);
-  const assignableRoles = roles.filter((role) => role.role_key !== "admin");
+  const assignableRoles = roles.filter((role) => !["admin", "business_owner"].includes(role.role_key));
   const closePanel = () => { if (busy) return; setAddUserOpen(false); setNewRoleOpen(false); setResetUser(null); setResetPassword(""); };
 
   return <div className="admin-console">
     <header className="admin-console-header">
-      <div><span className="eyebrow">OWNER ACCESS / TEAM CONTROL</span><h1>Access control</h1><p>Accounts, credentials, and the permissions behind every role.</p></div>
-      <span className="admin-owner-badge"><Shield size={15} /> Owner only</span>
+      <div><span className="eyebrow">BUSINESS ADMIN / TEAM CONTROL</span><h1>Access control</h1><p>Members and business-specific permissions.</p></div>
+      <span className="admin-owner-badge"><Shield size={15} /> Business admin</span>
     </header>
     {error && !panelOpen && <div className="admin-console-alert error" role="alert">{error}</div>}
     {message && <div className="admin-console-alert success" role="status"><Check size={15} /> {message}</div>}
@@ -234,9 +234,9 @@ export function UserManagement({ currentUserId }: { currentUserId: string }) {
         <div className="admin-section-intro"><div><h2>Team directory</h2><p>Change roles, set a new password, or remove access.</p></div><span>{users.length} accounts</span></div>
         <div className="admin-table-scroll"><table className="admin-users-table"><thead><tr><th>User</th><th>Role</th><th>Added (BS)</th><th>Actions</th></tr></thead><tbody>{users.map((user) => <tr key={user.user_id}>
           <td><div className="admin-user-cell"><span className="admin-user-avatar">{(user.full_name?.trim() || user.email)[0]?.toUpperCase()}</span><span><strong>{user.full_name?.trim() || user.email}</strong><small>{user.email}</small></span></div></td>
-          <td><select aria-label={`Role for ${user.full_name || user.email}`} value={user.role_key} disabled={busy || user.user_id === currentUserId} onChange={(event) => void assignRole(user, event.target.value)}>{roles.map((role) => <option key={role.role_key} value={role.role_key} disabled={role.role_key === "admin" && user.user_id !== currentUserId}>{role.name}</option>)}</select></td>
+          <td><select aria-label={`Role for ${user.full_name || user.email}`} value={user.role_key} disabled={busy || user.user_id === currentUserId} onChange={(event) => void assignRole(user, event.target.value)}>{roles.map((role) => <option key={role.role_key} value={role.role_key} disabled={role.role_key === "business_owner"}>{role.name}</option>)}</select></td>
           <td className="admin-date">{adToBs(user.created_at.slice(0, 10))}</td>
-          <td><div className="admin-row-actions"><button type="button" title="Set new password" aria-label={`Set new password for ${user.full_name || user.email}`} disabled={busy} onClick={() => { setResetUser(user); setResetPassword(""); setShowResetPassword(false); setError(""); }}><KeyRound size={16} /></button>{user.user_id !== currentUserId && <button type="button" className="danger" title="Delete user" aria-label={`Delete ${user.full_name || user.email}`} disabled={busy} onClick={() => void deleteUser(user)}><Trash2 size={16} /></button>}</div></td>
+          <td><div className="admin-row-actions"><button type="button" title="Set new password" aria-label={`Set new password for ${user.full_name || user.email}`} disabled={busy} onClick={() => { setResetUser(user); setResetPassword(""); setShowResetPassword(false); setError(""); }}><KeyRound size={16} /></button>{user.user_id !== currentUserId && <button type="button" className="danger" title="Remove business access" aria-label={`Remove ${user.full_name || user.email} from this business`} disabled={busy} onClick={() => void deleteUser(user)}><Trash2 size={16} /></button>}</div></td>
         </tr>)}</tbody></table></div>
       </> : <>
         <div className="admin-section-intro"><div><h2>Role policies</h2><p>Rename roles, adjust access, or remove unused roles. Admin stays protected.</p></div><span>{roles.length} roles</span></div>
