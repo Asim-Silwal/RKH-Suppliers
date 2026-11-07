@@ -1,4 +1,5 @@
 #!/bin/bash
 set -e
 pnpm install --frozen-lockfile
-pnpm --filter db push
+# Database changes are applied only through reviewed Supabase migrations.
+# Never run Drizzle push automatically after a merge.
